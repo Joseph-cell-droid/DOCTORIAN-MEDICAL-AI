@@ -27,10 +27,12 @@ import {
   Sun,
   Moon,
   LogOut,
-  LogIn
+  LogIn,
+  Download
 } from 'lucide-react';
 import { AndroidAppButtons, CLINICAL_MODULES_REGISTRY } from './AndroidAppButtons';
 import { useAppLanguage, SUPPORTED_LANGUAGES, normalizeLanguageCode, setAppLanguage } from '../utils/translations';
+import { getInstalledPackageSummary } from '../utils/offlinePackageBuilder';
 import type { User } from '../api';
 
 interface MobileBottomNavProps {
@@ -48,6 +50,7 @@ interface MobileBottomNavProps {
   onOpenVault?: () => void;
   onOpenAlerts?: () => void;
   onOpenProfileModal?: () => void;
+  onOpenInstallModal?: () => void;
   onOpenAuth?: () => void;
   onLogout?: () => void;
   isDarkMode?: boolean;
@@ -215,6 +218,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onOpenVault,
   onOpenAlerts,
   onOpenProfileModal,
+  onOpenInstallModal,
   onOpenAuth,
   onLogout,
   isDarkMode = true,
@@ -226,6 +230,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
   const [appCardMode, setAppCardMode] = useState<'grid' | 'detailed'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
+  const installedSummary = useMemo(() => getInstalledPackageSummary(), [isSwitcherOpen]);
 
   useEffect(() => {
     const openAppsCard = (e: Event) => {
@@ -356,14 +361,14 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               </div>
 
               {/* Quick Smart Actions Strip (Replaces Upper Bar Functions Cleanly) */}
-              <div className="grid grid-cols-4 gap-1.5 mb-2.5 shrink-0">
+              <div className="grid grid-cols-5 gap-1.5 mb-2.5 shrink-0">
                 <button
                   type="button"
                   onClick={() => closeSheetAndRun(onOpenAlerts)}
                   className="relative p-2 rounded-2xl bg-slate-100 dark:bg-slate-800/80 hover:bg-cyan-500/15 border border-slate-200/80 dark:border-slate-700/80 flex flex-col items-center gap-1 cursor-pointer"
                 >
                   <Bell size={15} className={unreadAlertsCount > 0 ? 'text-rose-500' : 'text-cyan-600 dark:text-cyan-400'} />
-                  <span className="text-[10px] font-bold truncate max-w-full">Live Alerts</span>
+                  <span className="text-[10px] font-bold truncate max-w-full">Alerts</span>
                   {unreadAlertsCount > 0 && (
                     <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-600 text-white text-[9px] font-black flex items-center justify-center tabular-nums">
                       {unreadAlertsCount > 99 ? '99+' : unreadAlertsCount}
@@ -377,7 +382,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                   className="p-2 rounded-2xl bg-slate-100 dark:bg-slate-800/80 hover:bg-cyan-500/15 border border-slate-200/80 dark:border-slate-700/80 flex flex-col items-center gap-1 cursor-pointer"
                 >
                   <PhoneCall size={15} className="text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[10px] font-bold truncate max-w-full">Call &amp; SMS</span>
+                  <span className="text-[10px] font-bold truncate max-w-full">Call/SMS</span>
                 </button>
 
                 <button
@@ -395,14 +400,25 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                   className="p-2 rounded-2xl bg-slate-100 dark:bg-slate-800/80 hover:bg-cyan-500/15 border border-slate-200/80 dark:border-slate-700/80 flex flex-col items-center gap-1 cursor-pointer"
                 >
                   <Search size={15} className="text-blue-600 dark:text-blue-400" />
-                  <span className="text-[10px] font-bold truncate max-w-full">Search App</span>
+                  <span className="text-[10px] font-bold truncate max-w-full">Search</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => closeSheetAndRun(onOpenInstallModal)}
+                  className="p-2 rounded-2xl bg-blue-600/10 dark:bg-cyan-500/15 hover:bg-blue-600/20 border border-blue-500/25 dark:border-cyan-400/35 flex flex-col items-center gap-1 cursor-pointer"
+                >
+                  <Download size={15} className="text-blue-600 dark:text-cyan-300" />
+                  <span className="text-[10px] font-bold truncate max-w-full tabular-nums">
+                    {installedSummary.pkg.sizeLabel}
+                  </span>
                 </button>
               </div>
 
               {/* Compact Preferences Row: Language, Theme, Auth Switch */}
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5 px-1 shrink-0" data-no-translate>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5 px-1 shrink-0">
                 <div className="flex items-center gap-1.5">
-                  <div className="relative flex items-center">
+                  <div className="relative flex items-center" data-no-translate>
                     <Globe size={12} className="absolute left-2.5 text-cyan-500 pointer-events-none" />
                     <select
                       aria-label="Language"
@@ -428,7 +444,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                       className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                     >
                       {isDarkMode ? <Sun size={12} className="text-amber-400" /> : <Moon size={12} className="text-indigo-500" />}
-                      <span>{isDarkMode ? 'Light' : 'Dark'}</span>
+                      <span>{t(isDarkMode ? 'Light' : 'Dark')}</span>
                     </button>
                   )}
                 </div>
@@ -439,7 +455,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                     onClick={() => setAppCardMode(appCardMode === 'grid' ? 'detailed' : 'grid')}
                     className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold cursor-pointer"
                   >
-                    {appCardMode === 'grid' ? 'Detailed List' : 'Compact Grid'}
+                    {t(appCardMode === 'grid' ? 'Detailed List' : 'Compact Grid')}
                   </button>
                   {user && user.role !== 'guest' && onLogout ? (
                     <button
@@ -448,7 +464,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                       className="px-2.5 py-1.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                     >
                       <LogOut size={12} />
-                      <span>Sign Out</span>
+                      <span>{t('Sign Out')}</span>
                     </button>
                   ) : onOpenAuth ? (
                     <button
@@ -457,7 +473,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                       className="px-2.5 py-1.5 rounded-xl bg-blue-600 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                     >
                       <LogIn size={12} />
-                      <span>Sign In</span>
+                      <span>{t('Sign In')}</span>
                     </button>
                   ) : null}
                 </div>
@@ -578,14 +594,14 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             </span>
           </button>
 
-          {/* 2. Care AI */}
+          {/* 2. Medbot */}
           <button
             type="button"
             onClick={() => {
               setIsSwitcherOpen(false);
               onNavigate('ai_nexus');
             }}
-            aria-label={t('Care AI')}
+            aria-label={t('Medbot')}
             className="flex-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 rounded-xl transition-all cursor-pointer active:scale-95"
           >
             <div
@@ -602,7 +618,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 isAiActive ? 'font-black text-violet-600 dark:text-violet-300' : 'font-semibold text-slate-600 dark:text-slate-300'
               }`}
             >
-              Care AI
+              {t('Medbot')}
             </span>
           </button>
 
@@ -638,7 +654,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               setIsSwitcherOpen(false);
               onNavigate('server_network');
             }}
-            aria-label="SMS Hub"
+            aria-label={t('SMS Hub')}
             className="flex-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 rounded-xl transition-all cursor-pointer active:scale-95"
           >
             <div
@@ -655,7 +671,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 isSmsActive ? 'font-black text-cyan-600 dark:text-cyan-300' : 'font-semibold text-slate-600 dark:text-slate-300'
               }`}
             >
-              SMS Hub
+              {t('SMS Hub')}
             </span>
           </button>
 
@@ -666,7 +682,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               setIsSwitcherOpen(false);
               onNavigate('settings');
             }}
-            aria-label="Account"
+            aria-label={t('Account')}
             className="flex-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 rounded-xl transition-all cursor-pointer active:scale-95"
           >
             <div
@@ -683,7 +699,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 isAccountActive ? 'font-black text-indigo-600 dark:text-indigo-300' : 'font-semibold text-slate-600 dark:text-slate-300'
               }`}
             >
-              Account
+              {t('Account')}
             </span>
           </button>
         </div>

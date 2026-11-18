@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Info, HelpCircle, Navigation, CheckCircle, AlertTriangle, Sparkles, X, Volume2, HelpCircle as HelpIcon, History, Clock, WifiOff, Keyboard } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { resolveSmartVoiceCommand } from '../utils/smartVoiceRouter';
+import { getAppLanguage, setAppLanguage } from '../utils/translations';
 
 // Define the voice command item shape
 export interface VoiceCommandHelp {
@@ -123,41 +125,46 @@ export const VoiceCommandToggle: React.FC<VoiceCommandToggleProps> = ({ onNaviga
     recognitionRef.current = recognition;
   };
 
-  // Match text against commands and navigate
+  // Match text against commands and navigate (online & offline + user-interest aware)
   const processSpeech = (text: string): boolean => {
-    const speechText = text.toLowerCase().trim();
-    
-    // Commands mapping utilities
-    const mappings = [
-      { keys: ['go home', 'dashboard', 'main screen', 'welcome', 'homepage'], view: 'home', label: 'Dashboard Home' },
-      { keys: ['monitor', 'telemetry', 'beds', 'vitals', 'patient'], view: 'monitor', label: 'Patient Vital Monitor' },
-      { keys: ['ai', 'nexus', 'doctor', 'assistant'], view: 'ai_nexus', label: 'AI Medical Nexus' },
-      { keys: ['specialist', 'emr', 'ehr', 'clinical'], view: 'specialist', label: 'Clinical EMR Specialist' },
-      { keys: ['services', 'features', 'catalogue', 'modules'], view: 'features', label: 'Health Services Feature Catalog' },
-      { keys: ['records', 'documents', 'charts', 'history', 'reports'], view: 'records', label: 'Personal Health Records' },
-      { keys: ['lab', 'diagnostics', 'testing'], view: 'diagnostic_lab', label: 'Diagnostic Lab' },
-      { keys: ['meds', 'medication', 'pharmacy', 'pills'], view: 'meds', label: 'Smart Medications Tracker' },
-      { keys: ['symptoms', 'diagnostic checker', 'symptom'], view: 'symptoms', label: 'Interactive Symptom Checker' },
-      { keys: ['fitness', 'exercise', 'workout'], view: 'fitness', label: 'Biometrics Fitness Tracker' },
-      { keys: ['emergency', 'alert', 'critical'], view: 'emergency', label: 'Emergency First-Aid Hub' },
-      { keys: ['profile', 'account', 'me', 'settings'], view: 'profile', label: 'User Profile' },
-      { keys: ['admin', 'portal', 'security', 'access', 'administration'], view: 'admin', label: 'Admin Command Center' },
-      { keys: ['about us', 'mission', 'about'], view: 'about', label: 'About Us Portal' }
-    ];
-
-    for (const mapping of mappings) {
-      for (const phrase of mapping.keys) {
-        if (speechText.includes(phrase)) {
-          triggerSuccessMatch(mapping.view, mapping.label, text);
-          return true;
-        }
+    const res = resolveSmartVoiceCommand(text, getAppLanguage());
+    if (res.matched && res.intent) {
+      const intent = res.intent;
+      if (intent.actionType === 'view') {
+        triggerSuccessMatch(intent.target, intent.label, text);
+        return true;
       }
+      if (intent.actionType === 'event') {
+        window.dispatchEvent(new CustomEvent(intent.target));
+        triggerSuccessMatch('home', intent.label, text);
+        return true;
+      }
+      if (intent.actionType === 'theme') {
+        window.dispatchEvent(new CustomEvent('doctorian-set-theme', { detail: { dark: intent.target === 'dark' } }));
+        triggerSuccessMatch('home', intent.label, text);
+        return true;
+      }
+      if (intent.actionType === 'language') {
+        setAppLanguage(intent.target);
+        triggerSuccessMatch('home', intent.label, text);
+        return true;
+      }
+    }
+
+    if (res.offlineAnswer) {
+      if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
+      setStatus('success');
+      setFeedbackMessage(res.offlineAnswer.slice(0, 260));
+      feedbackTimeoutRef.current = setTimeout(() => {
+        setStatus(isListening ? 'listening' : 'idle');
+      }, 6500);
+      return true;
     }
 
     // Set unrecognized status temporarily
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
     setStatus('unrecognized');
-    setFeedbackMessage(`Command phrase "${text}" was not recognized. Please verify or review the Commands Guide.`);
+    setFeedbackMessage(`Command phrase "${text}" was not recognized. Try "medbot", "malaria", "pharmacy", or "sms".`);
     feedbackTimeoutRef.current = setTimeout(() => {
       if (isListening) {
         setStatus('listening');

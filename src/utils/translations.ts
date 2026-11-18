@@ -13,6 +13,11 @@ export const SUPPORTED_LANGUAGES: Array<{ code: LanguageCode; shortLabel: string
   { code: 'Langi', shortLabel: 'Langi', nativeLabel: 'Langi' },
   { code: 'Iteso', shortLabel: 'Iteso', nativeLabel: 'Iteso' },
   { code: 'Lusoga', shortLabel: 'Lusoga', nativeLabel: 'Lusoga' },
+  { code: 'Lugbara', shortLabel: 'Lugbara', nativeLabel: 'Lugbara' },
+  { code: 'Runyoro-Rutooro', shortLabel: 'Runyoro', nativeLabel: 'Runyoro-Rutooro' },
+  { code: 'Rukonjo', shortLabel: 'Rukonjo', nativeLabel: 'Rukonjo' },
+  { code: 'Samia', shortLabel: 'Samia', nativeLabel: 'Samia' },
+  { code: 'Karamojong', shortLabel: 'Karamojong', nativeLabel: 'Ngakarimojong' },
   { code: 'French', shortLabel: 'Français', nativeLabel: 'Français' },
   { code: 'Spanish', shortLabel: 'Español', nativeLabel: 'Español' },
   { code: 'Arabic', shortLabel: 'العربية', nativeLabel: 'العربية' },
@@ -38,6 +43,15 @@ export function normalizeLanguageCode(lang?: string | null): LanguageCode {
     'rukiga': 'Runyankole-Rukiga',
     'acholi': 'Acholi-Luo',
     'luo': 'Acholi-Luo',
+    'lango': 'Langi',
+    'ateso': 'Iteso',
+    'lugbara': 'Lugbara',
+    'runyoro': 'Runyoro-Rutooro',
+    'rutooro': 'Runyoro-Rutooro',
+    'rukonzo': 'Rukonjo',
+    'lukonzo': 'Rukonjo',
+    'lusamia': 'Samia',
+    'ngakarimojong': 'Karamojong',
     'fr': 'French',
     'français': 'French',
     'es': 'Spanish',
@@ -3332,16 +3346,750 @@ for (const [phrase, langMap] of Object.entries(SHARED_LOCALIZATIONS)) {
   }
 }
 
-export const translate = (text: string, selectedLanguage: string): string => {
+/**
+ * Synchronous multi-language lexicon (phrases + UI nouns/verbs) across all 12 Ugandan languages
+ * and global languages so every header, card, modal, placeholder, button, and sidebar item translates
+ * instantly on first pass without leaving half of the UI in English.
+ */
+const UNIVERSAL_PHRASE_GLOSSARY: Partial<Record<LanguageCode, Record<string, string>>> = {
+  'Luganda': {
+    'medbot': 'Medbot (Musawo AI)',
+    'care ai': 'Medbot (Musawo AI)',
+    'menu': 'Menyu',
+    'home': 'Ewaka',
+    'sms hub': 'Obubaka bwa SMS',
+    'profile': 'Ebikukwatako',
+    'install app': 'Teekako App',
+    'download app': 'Wanula App',
+    'download': 'Wanula',
+    'install': 'Teekako',
+    'offline': 'Awatali Mutimbagano',
+    'online': 'Ku Mutimbagano',
+    'live telemetry': 'Ebipimo by’Obulamu',
+    'live health': 'Obulamu mu Kiseera Kino',
+    'quick actions': 'Ebikolwa eby’Amangu',
+    'quick': 'Amangu',
+    'clinical lab': 'Labu y’Obujjanjabi',
+    'voice command': 'Ekiragiro ky’Eddoboozi',
+    'voice': 'Eddoboozi',
+    'search': 'Noonya',
+    'filter clinical apps': 'Noonya mu byuma by’obujjanjabi',
+    'call/sms': 'Kuba / SMS',
+    'call & sms': 'Kuba & SMS',
+    '1gb vault': 'Kakebe ka 1GB',
+    'detailed list': 'Olukalala Olujjuvu',
+    'compact grid': 'Obubokisi Obutono',
+    'sign in': 'Yingira',
+    'sign out': 'Fuluma',
+    'log out': 'Fuluma',
+    'dark': 'Ekizikiza',
+    'light': 'Ekitangaala',
+    'save': 'Tereka',
+    'cancel': 'Sazaamu',
+    'send': 'Wereza',
+    'back': 'Ddayo',
+    'next': 'Ekiddako',
+    'previous': 'Ekiyise',
+    'close': 'Ggalawo',
+    'submit': 'Wereza',
+    'update': 'Ddabiriza',
+    'delete': 'Gyawo',
+    'edit': 'Kyusa',
+    'add': 'Gattako',
+    'view': 'Laba',
+    'open': 'Ggulawo',
+    'ready': 'Kiwedde',
+    'active': 'Kikola',
+    'pending': 'Kirindiridde',
+    'connected': 'Kiyungiddwa',
+    'disconnected': 'Tekiyungiddwa',
+    'connect': 'Yunga',
+    'symptoms': 'Obubonero',
+    'symptom triage': 'Okukebera Obubonero',
+    'triage': 'Okukebera',
+    'prescriptions': 'Empapula z’Eddagala',
+    'prescription': 'Eddagala',
+    'e-pharmacy': 'Eddagala ku Mutimbagano',
+    'pharmacy': 'Eddagala',
+    'appointments': 'Okusisinkana',
+    'appointment': 'Okusisinkana',
+    'medical records': 'Ebiwandiiko by’Obujjanjabi',
+    'records': 'Ebiwandiiko',
+    'vitals': 'Ebipimo by’Obulamu',
+    'vitality matrix': 'Ebipimo by’Amaanyi',
+    'bio-telemetry': 'Ebipimo by’Omubiri',
+    'ambient scribe': 'Omuwandiisi w’Eddoboozi',
+    'lab analyser': 'Omukebera wa Labu',
+    'genomic timeline': 'Olukalala lw’Obulamu',
+    'neural lab': 'Labu y’Obwongo',
+    'hospital admin': 'Obufuzi bw’Eddwaliro',
+    'smart watch': 'Essaawa y’Omulembe',
+    'plans & billing': 'Enteekateeka n’Okusasula',
+    'app installers': 'Ebyuma Ebiwanula App',
+    'account': 'Akawunti',
+    'notifications': 'Obubaka Obujjukiza',
+    'emergency': 'Amangu Ddala',
+    'video call': 'Okwogera ku Vidiyo',
+    'voice call': 'Essimu y’Eddoboozi',
+    'end call': 'Ggalawo Essimu',
+    'captions': 'Ebigambo',
+    'dialogue': 'Okwogerezeganya',
+    'vitals & rx': 'Ebipimo n’Eddagala',
+    'peer & log': 'Abasawo n’Ebiwandiiko',
+    'mic on': 'Akazindaalo Kaggule',
+    'mic off': 'Akazindaalo Kaggale',
+    'camera': 'Kkamera',
+    'cam off': 'Kkamera Nzigale',
+    'share': 'Gaba',
+    'consultation feed': 'Vidiyo y’Omusawo',
+    'cardiac echo': 'Ekifaananyi ky’Omutima',
+    'care guide': 'Endagiriro y’Obujjanjabi',
+    'play': 'Zannya',
+    'pause': 'Yimiriza',
+    'doctor': 'Omusawo',
+    'doctors': 'Abasawo',
+    'patient': 'Omulwadde',
+    'patients': 'Abalwadde',
+    'hospital': 'Eddwaliro',
+    'clinic': 'Kliniki',
+    'health': 'Obulamu',
+    'medication': 'Eddagala',
+    'medicine': 'Eddagala',
+    'fever': 'Omusujja',
+    'pain': 'Obulumi',
+    'blood': 'Omusaayi',
+    'heart': 'Omutima',
+    'oxygen': 'Omukka (Oxygen)',
+    'temperature': 'Ebbugumu',
+    'today': 'Leero',
+    'status': 'Embeera',
+    'settings': 'Nteekateeka',
+    'storage': 'Etterekero',
+    'welcome': 'Tukusanyukidde',
+    'loading': 'Kigenda...',
+    'new consultation': 'Okwebuuza Okupya',
+    'type your message': 'Wandiika obubaka bwo',
+    'ask medbot anything': 'Buuza Medbot Kyonna Ky’Oyagala'
+  },
+  'Swahili': {
+    'medbot': 'Medbot (Daktari AI)',
+    'care ai': 'Medbot (Daktari AI)',
+    'menu': 'Menyu',
+    'home': 'Nyumbani',
+    'sms hub': 'Kituo cha SMS',
+    'profile': 'Wasifu',
+    'install app': 'Sakinisha Programu',
+    'download app': 'Pakua Programu',
+    'download': 'Pakua',
+    'install': 'Sakinisha',
+    'offline': 'Nje ya Mtandao',
+    'online': 'Mtandaoni',
+    'live telemetry': 'Vipimo vya Moja kwa Moja',
+    'live health': 'Afya Moja kwa Moja',
+    'quick actions': 'Vitendo vya Haraka',
+    'quick': 'Haraka',
+    'clinical lab': 'Maabara ya Kliniki',
+    'voice command': 'Amri ya Sauti',
+    'voice': 'Sauti',
+    'search': 'Tafuta',
+    'filter clinical apps': 'Chuja programu za kliniki',
+    'call/sms': 'Piga / SMS',
+    'call & sms': 'Piga & SMS',
+    '1gb vault': 'Hifadhi ya 1GB',
+    'detailed list': 'Orodha ya Kina',
+    'compact grid': 'Gridi Fupi',
+    'sign in': 'Ingia',
+    'sign out': 'Ondoka',
+    'log out': 'Ondoka',
+    'dark': 'Giza',
+    'light': 'Mwanga',
+    'save': 'Hifadhi',
+    'cancel': 'Ghairi',
+    'send': 'Tuma',
+    'back': 'Rudi',
+    'next': 'Inayofuata',
+    'previous': 'Iliyopita',
+    'close': 'Funga',
+    'submit': 'Wasilisha',
+    'update': 'Sasisha',
+    'delete': 'Futa',
+    'edit': 'Hariri',
+    'add': 'Ongeza',
+    'view': 'Tazama',
+    'open': 'Fungua',
+    'ready': 'Tayari',
+    'active': 'Inatumika',
+    'pending': 'Inasubiri',
+    'connected': 'Imeunganishwa',
+    'disconnected': 'Imekatwa',
+    'connect': 'Unganisha',
+    'symptoms': 'Dalili',
+    'symptom triage': 'Uchunguzi wa Dalili',
+    'triage': 'Uchambuzi',
+    'prescriptions': 'Maagizo ya Dawa',
+    'prescription': 'Dawa Iliyoandikwa',
+    'e-pharmacy': 'Duka la Dawa',
+    'pharmacy': 'Famasia',
+    'appointments': 'Miadi',
+    'appointment': 'Miadi',
+    'medical records': 'Rekodi za Matibabu',
+    'records': 'Rekodi',
+    'vitals': 'Vipimo Muhimu',
+    'vitality matrix': 'Vipimo vya Uhai',
+    'bio-telemetry': 'Vipimo vya Mwili',
+    'ambient scribe': 'Mwandishi wa Sauti',
+    'lab analyser': 'Kichambuzi cha Maabara',
+    'genomic timeline': 'Historia ya Afya',
+    'neural lab': 'Maabara ya Akili',
+    'hospital admin': 'Utawala wa Hospitali',
+    'smart watch': 'Saa Janja',
+    'plans & billing': 'Mipango na Malipo',
+    'app installers': 'Visakinishi vya Programu',
+    'account': 'Akaunti',
+    'notifications': 'Arifa',
+    'emergency': 'Dharura',
+    'video call': 'Simu ya Video',
+    'voice call': 'Simu ya Sauti',
+    'end call': 'Kata Simu',
+    'captions': 'Manukuu',
+    'dialogue': 'Mazungumzo',
+    'vitals & rx': 'Vipimo na Dawa',
+    'peer & log': 'Madaktari na Kumbukumbu',
+    'mic on': 'Maikrofoni Imewashwa',
+    'mic off': 'Maikrofoni Imezimwa',
+    'camera': 'Kamera',
+    'cam off': 'Kamera Imezimwa',
+    'share': 'Shiriki',
+    'consultation feed': 'Video ya Daktari',
+    'cardiac echo': 'Picha ya Moyo',
+    'care guide': 'Mwongozo wa Huduma',
+    'play': 'Cheza',
+    'pause': 'Simamisha',
+    'doctor': 'Daktari',
+    'doctors': 'Madaktari',
+    'patient': 'Mgonjwa',
+    'patients': 'Wagonjwa',
+    'hospital': 'Hospitali',
+    'clinic': 'Kliniki',
+    'health': 'Afya',
+    'medication': 'Dawa',
+    'medicine': 'Dawa',
+    'fever': 'Homa',
+    'pain': 'Maumivu',
+    'blood': 'Damu',
+    'heart': 'Moyo',
+    'oxygen': 'Oksijeni',
+    'temperature': 'Joto',
+    'today': 'Leo',
+    'status': 'Hali',
+    'settings': 'Mipangilio',
+    'storage': 'Hifadhi',
+    'welcome': 'Karibu',
+    'loading': 'Inapakia...',
+    'new consultation': 'Ushauri Mpya',
+    'type your message': 'Andika ujumbe wako',
+    'ask medbot anything': 'Uliza Medbot Chochote'
+  },
+  'Runyankole-Rukiga': {
+    'medbot': 'Medbot (Omushaho AI)',
+    'care ai': 'Medbot (Omushaho AI)',
+    'menu': 'Menyu',
+    'home': 'Omuka',
+    'sms hub': 'Obuhereza bwa SMS',
+    'profile': 'Ebikukwataho',
+    'install app': 'Taaha App',
+    'download app': 'Iha App',
+    'download': 'Iha',
+    'install': 'Taaha',
+    'offline': 'Hatariho Intaneeti',
+    'online': 'Ha Mutimbagano',
+    'live telemetry': 'Ebipimo by’Amagara',
+    'quick actions': 'Ebikorwa by’Ahonaaho',
+    'clinical lab': 'Laboratori',
+    'voice command': 'Ekiragiro ky’Eiraka',
+    'search': 'Sherura',
+    'call/sms': 'Teera / SMS',
+    '1gb vault': 'Ebiibo bya 1GB',
+    'detailed list': 'Olukalala Rwijwire',
+    'compact grid': 'Obubokisi Bukye',
+    'sign in': 'Taaha',
+    'sign out': 'Shohoka',
+    'dark': 'Omwirima',
+    'light': 'Ekyererezi',
+    'save': 'Biika',
+    'cancel': 'Reka',
+    'send': 'Tuma',
+    'back': 'Garuka',
+    'next': 'Ekindi',
+    'close': 'Kiinga',
+    'symptoms': 'Obubonero',
+    'symptom triage': 'Okukebera Obubonero',
+    'prescriptions': 'Empapuro z’Emibazi',
+    'e-pharmacy': 'Edduuka ry’Emibazi',
+    'appointments': 'Obwire bw’Okurabwa',
+    'medical records': 'Ebihandiiko by’Obujanjabi',
+    'vitals': 'Ebipimo by’Omubiri',
+    'emergency': 'Obujurizi bw’Ahonaaho',
+    'video call': 'Esimu ya Vidiyo',
+    'voice call': 'Esimu y’Eiraka',
+    'end call': 'Kiinga Esimu',
+    'captions': 'Ebigambo',
+    'doctor': 'Omushaho',
+    'doctors': 'Abashaho',
+    'patient': 'Omurwaire',
+    'patients': 'Abarwaire',
+    'hospital': 'Eirwariro',
+    'health': 'Amagara',
+    'medication': 'Omubazi',
+    'fever': 'Omushwija',
+    'blood': 'Eshagama',
+    'heart': 'Omutima',
+    'today': 'Erizooba',
+    'settings': 'Enteekateeka',
+    'welcome': 'Tukusanyukire'
+  },
+  'Acholi-Luo': {
+    'medbot': 'Medbot (Daktari AI)',
+    'care ai': 'Medbot (Daktari AI)',
+    'menu': 'Menyu',
+    'home': 'Gang',
+    'sms hub': 'Kabedo me SMS',
+    'profile': 'Ngec ni',
+    'install app': 'Ket App',
+    'download app': 'Gam App',
+    'download': 'Gam',
+    'install': 'Ket',
+    'offline': 'Intanet Peke',
+    'online': 'Intanet Tye',
+    'live telemetry': 'Pimo Yotkom',
+    'quick actions': 'Tic ma Oyot',
+    'clinical lab': 'Labu me Yat',
+    'voice command': 'Cik me Dwan',
+    'search': 'Yeny',
+    'call/sms': 'Goy Cim / SMS',
+    '1gb vault': 'Kabedo 1GB',
+    'sign in': 'Dony',
+    'sign out': 'Kat Woko',
+    'dark': 'Col',
+    'light': 'Ler',
+    'save': 'Gwok',
+    'cancel': 'Juki',
+    'send': 'Cwal',
+    'back': 'Dok Cen',
+    'next': 'Manyen',
+    'close': 'Lor',
+    'symptoms': 'Lanyut me Two',
+    'symptom triage': 'Ngolo Lanyut me Two',
+    'prescriptions': 'Waraga me Yat',
+    'e-pharmacy': 'Duka me Yat',
+    'appointments': 'Cawa me Rwate',
+    'medical records': 'Rekod me Yat',
+    'vitals': 'Pimo Kom',
+    'emergency': 'Peko ma Oyot',
+    'video call': 'Cim me Video',
+    'voice call': 'Cim me Dwan',
+    'end call': 'Lor Cim',
+    'doctor': 'Daktari',
+    'doctors': 'Ludaktar',
+    'patient': 'Latwo',
+    'patients': 'Lutwo',
+    'hospital': 'Ot Yat',
+    'health': 'Yotkom',
+    'medication': 'Yat',
+    'fever': 'Lyeto',
+    'blood': 'Remo',
+    'heart': 'Cwiny',
+    'today': 'Tin',
+    'settings': 'Ter',
+    'welcome': 'Wabino Maber'
+  },
+  'Langi': {
+    'medbot': 'Medbot (Daktari AI)',
+    'care ai': 'Medbot (Daktari AI)',
+    'menu': 'Menyu',
+    'home': 'Gang',
+    'sms hub': 'Kabedo me SMS',
+    'profile': 'Ngec ni',
+    'install app': 'Ket App',
+    'download app': 'Gam App',
+    'download': 'Gam',
+    'offline': 'Intanet Pe',
+    'online': 'Tye i Intanet',
+    'quick actions': 'Tic Oyot',
+    'search': 'Yeny',
+    'call/sms': 'Goy Cim / SMS',
+    'sign in': 'Dony',
+    'sign out': 'Kat',
+    'save': 'Gwok',
+    'cancel': 'Juki',
+    'send': 'Cwal',
+    'close': 'Lor',
+    'symptoms': 'Anyut me Two',
+    'prescriptions': 'Waraga me Yat',
+    'e-pharmacy': 'Duka me Yat',
+    'records': 'Rekod',
+    'doctor': 'Daktari',
+    'patient': 'Latwo',
+    'hospital': 'Ot Yat',
+    'health': 'Yotkom',
+    'today': 'Tin',
+    'settings': 'Ngec me ter'
+  },
+  'Iteso': {
+    'medbot': 'Medbot (Dokta AI)',
+    'care ai': 'Medbot (Dokta AI)',
+    'menu': 'Menyu',
+    'home': 'Oreo',
+    'sms hub': 'Etem loka SMS',
+    'profile': 'Akiro kon',
+    'install app': 'Kibwa App',
+    'download app': 'Kodowun App',
+    'download': 'Kodowun',
+    'offline': 'Mam Intanet',
+    'online': 'Ejai Intanet',
+    'quick actions': 'Aswam Atipet',
+    'search': 'Komoo',
+    'call/sms': 'Kiram / SMS',
+    'sign in': 'Loma',
+    'sign out': 'Lomara',
+    'save': 'Kidar',
+    'cancel': 'Kibwa',
+    'send': 'Kijuk',
+    'close': 'Golok',
+    'symptoms': 'Aanyuneta nuka Adeka',
+    'prescriptions': 'Akiro nuka Iyatun',
+    'e-pharmacy': 'Ekurukuru loka Iyatun',
+    'records': 'Akiro',
+    'doctor': 'Dokta',
+    'patient': 'Ekauran',
+    'hospital': 'Adekis',
+    'health': 'Angaleu',
+    'today': 'Lolo',
+    'settings': 'Aitengener'
+  },
+  'Lusoga': {
+    'medbot': 'Medbot (Musawo AI)',
+    'care ai': 'Medbot (Musawo AI)',
+    'menu': 'Menyu',
+    'home': 'Eka',
+    'sms hub': 'Ekifo kya SMS',
+    'profile': 'Ebikukwatako',
+    'install app': 'Teekako App',
+    'download app': 'Wanula App',
+    'download': 'Wanula',
+    'offline': 'Tewali Mutimbagano',
+    'online': 'Ku Mutimbagano',
+    'quick actions': 'Ebikolwa eby’Amangu',
+    'search': 'Noonya',
+    'call/sms': 'Kuba / SMS',
+    'sign in': 'Yingira',
+    'sign out': 'Fuluma',
+    'save': 'Tereka',
+    'cancel': 'Sazaamu',
+    'send': 'Wereza',
+    'close': 'Igalawo',
+    'symptoms': 'Obubonero',
+    'prescriptions': 'Empapula z’Eddagala',
+    'e-pharmacy': 'Edduuka ly’Eddagala',
+    'records': 'Ebiwandiiko',
+    'doctor': 'Omusawo',
+    'patient': 'Omulwaire',
+    'hospital': 'Iddwaliro',
+    'health': 'Obulamu',
+    'today': 'Lero',
+    'settings': 'Enteekateeka'
+  },
+  'Lugbara': {
+    'medbot': 'Medbot (Drakpi AI)',
+    'care ai': 'Medbot (Drakpi AI)',
+    'menu': 'Menyu',
+    'home': 'Jo Alia',
+    'sms hub': 'SMS Alia',
+    'profile': 'Mi Ma Ta',
+    'install app': 'Di App',
+    'download app': 'Oku App',
+    'offline': 'Intanet Ku',
+    'online': 'Intanet Be',
+    'quick actions': 'Tic Amapi',
+    'search': 'Ndi',
+    'call/sms': 'Ece / SMS',
+    'sign in': 'Mu Alia',
+    'sign out': 'Fu',
+    'save': 'Gbo',
+    'cancel': 'Ede',
+    'send': 'Pe',
+    'close': 'Pi',
+    'symptoms': 'Azo Ma Etu',
+    'prescriptions': 'Ari Ma Waraga',
+    'e-pharmacy': 'Kasuro be Adi',
+    'records': 'Obipi',
+    'doctor': 'Drakpi',
+    'patient': 'Baju',
+    'hospital': 'Otuu Yat',
+    'health': 'Idri',
+    'settings': 'Ter'
+  },
+  'Runyoro-Rutooro': {
+    'medbot': 'Medbot (Omushaho AI)',
+    'care ai': 'Medbot (Omushaho AI)',
+    'menu': 'Menyu',
+    'home': 'Omuka',
+    'sms hub': 'Ekifo kya SMS',
+    'profile': 'Ebikukwataho',
+    'install app': 'Taaha App',
+    'download app': 'Iha App',
+    'offline': 'Hataroho Intaneeti',
+    'online': 'Ha Intaneeti',
+    'quick actions': 'Ebikorwa by’Ahonaaho',
+    'search': 'Serura',
+    'call/sms': 'Teera / SMS',
+    'sign in': 'Taaha',
+    'sign out': 'Fuluma',
+    'save': 'Biika',
+    'cancel': 'Reka',
+    'send': 'Tuma',
+    'close': 'Kiinga',
+    'symptoms': 'Oburorero',
+    'prescriptions': 'Empapuro z’Emibazi',
+    'e-pharmacy': 'Edduuka ly’Eddagala',
+    'records': 'Ebihandiiko',
+    'doctor': 'Omushaho',
+    'patient': 'Omurwaire',
+    'hospital': 'Eirwariro',
+    'health': 'Obwomeezi',
+    'settings': 'Enteekateeka'
+  },
+  'Rukonjo': {
+    'medbot': 'Medbot (Omusaho AI)',
+    'care ai': 'Medbot (Omusaho AI)',
+    'menu': 'Menyu',
+    'home': 'Eka',
+    'sms hub': 'Ekiharo kya SMS',
+    'profile': 'Ebyawe',
+    'install app': 'Hiraho App',
+    'download app': 'Ihayo App',
+    'offline': 'Hatali Intaneeti',
+    'online': 'Kuli Intaneeti',
+    'quick actions': 'Emikolere y’Aluba',
+    'search': 'Sondya',
+    'call/sms': 'Birikira / SMS',
+    'sign in': 'Ingira',
+    'sign out': 'Huluka',
+    'save': 'Bika',
+    'cancel': 'Leka',
+    'send': 'Tuma',
+    'close': 'Kinga',
+    'symptoms': 'Ebirorero',
+    'prescriptions': 'Emibatsi',
+    'e-pharmacy': 'Ediru ly’Eddagala',
+    'records': 'Ebihandiiko',
+    'doctor': 'Omusaho',
+    'patient': 'Omulhwere',
+    'hospital': 'Eddwaliro',
+    'health': 'Obulamu',
+    'settings': 'Entegeka'
+  },
+  'Samia': {
+    'medbot': 'Medbot (Omusawo AI)',
+    'care ai': 'Medbot (Omusawo AI)',
+    'menu': 'Menyu',
+    'home': 'Eka',
+    'sms hub': 'Ekifo kya SMS',
+    'profile': 'Ebikukwatako',
+    'install app': 'Teekako App',
+    'download app': 'Wanula App',
+    'offline': 'Bula Intaneeti',
+    'online': 'Ne Intaneeti',
+    'quick actions': 'Ebikolwa Bwangu',
+    'search': 'Saka',
+    'call/sms': 'Langa / SMS',
+    'sign in': 'Ingira',
+    'sign out': 'Fuma',
+    'save': 'Bika',
+    'cancel': 'Leka',
+    'send': 'Tuma',
+    'close': 'Igalawo',
+    'symptoms': 'Obubonero',
+    'prescriptions': 'Eddagala',
+    'e-pharmacy': 'Eryoolo lya Eddagala',
+    'records': 'Ebiwandiiko',
+    'doctor': 'Omusawo',
+    'patient': 'Omulwaye',
+    'hospital': 'Iddwaliro',
+    'health': 'Obulamu',
+    'settings': 'Ametekero'
+  },
+  'Karamojong': {
+    'medbot': 'Medbot (Emuron AI)',
+    'care ai': 'Medbot (Emuron AI)',
+    'menu': 'Menyu',
+    'home': 'Oreo',
+    'sms hub': 'Akiro ka SMS',
+    'profile': 'Ngakiro kon',
+    'install app': 'Kibwa App',
+    'download app': 'Koya App',
+    'offline': 'Mam Intanet',
+    'online': 'Ejai Intanet',
+    'quick actions': 'Etic Atipet',
+    'search': 'Kirik',
+    'call/sms': 'Kiram / SMS',
+    'sign in': 'Loma',
+    'sign out': 'Lomara',
+    'save': 'Kidar',
+    'cancel': 'Kibwa',
+    'send': 'Kijuk',
+    'close': 'Golok',
+    'symptoms': 'Aanyuneta nuka Adeka',
+    'prescriptions': 'Ekitoi',
+    'e-pharmacy': 'Aropit naka Ekisero',
+    'records': 'Ngakiro',
+    'doctor': 'Emuron',
+    'patient': 'Ekadekan',
+    'hospital': 'Adekis',
+    'health': 'Aijar',
+    'settings': 'Aitelek'
+  },
+  'French': {
+    'medbot': 'Medbot',
+    'care ai': 'Medbot',
+    'menu': 'Menu',
+    'sms hub': 'Centre SMS',
+    'install app': 'Installer l’app',
+    'download app': 'Télécharger l’app',
+    'live telemetry': 'Télémétrie en direct',
+    'quick actions': 'Actions rapides',
+    'clinical lab': 'Labo clinique',
+    'voice command': 'Commande vocale',
+    'filter clinical apps': 'Filtrer les modules cliniques',
+    'call/sms': 'Appel / SMS',
+    '1gb vault': 'Coffre 1 Go',
+    'detailed list': 'Liste détaillée',
+    'compact grid': 'Grille compacte',
+    'sign out': 'Déconnexion',
+    'end call': 'Raccrocher',
+    'captions': 'Sous-titres'
+  },
+  'Spanish': {
+    'medbot': 'Medbot',
+    'care ai': 'Medbot',
+    'menu': 'Menú',
+    'sms hub': 'Centro SMS',
+    'install app': 'Instalar app',
+    'download app': 'Descargar app',
+    'live telemetry': 'Telemetría en vivo',
+    'quick actions': 'Acciones rápidas',
+    'clinical lab': 'Lab clínico',
+    'voice command': 'Comando de voz',
+    'filter clinical apps': 'Filtrar módulos clínicos',
+    'call/sms': 'Llamar / SMS',
+    '1gb vault': 'Bóveda 1GB',
+    'detailed list': 'Lista detallada',
+    'compact grid': 'Cuadrícula',
+    'sign out': 'Cerrar sesión',
+    'end call': 'Colgar',
+    'captions': 'Subtítulos'
+  },
+  'Arabic': {
+    'medbot': 'Medbot',
+    'care ai': 'Medbot',
+    'menu': 'القائمة',
+    'sms hub': 'مركز الرسائل',
+    'install app': 'تثبيت التطبيق',
+    'download app': 'تنزيل التطبيق',
+    'live telemetry': 'القياس المباشر',
+    'quick actions': 'إجراءات سريعة',
+    'clinical lab': 'المختبر السريري',
+    'voice command': 'أمر صوتي',
+    'call/sms': 'اتصال / SMS',
+    '1gb vault': 'خزنة 1 جيجابايت',
+    'sign out': 'تسجيل الخروج',
+    'end call': 'إنهاء المكالمة',
+    'captions': 'الترجمة النصية'
+  }
+};
+
+function lookupExactDictionaryTranslation(phrase: string, langKey: LanguageCode): string | null {
+  const lower = phrase.toLowerCase();
+
+  const screenDict = UI_SCREEN_DICTIONARY[langKey];
+  if (screenDict) {
+    if (phrase in screenDict) return screenDict[phrase];
+    for (const key of Object.keys(screenDict)) {
+      if (key.toLowerCase() === lower) return screenDict[key];
+    }
+  }
+
+  const simpDict = simplifiedOfflineTranslations[langKey];
+  if (simpDict) {
+    if (phrase in simpDict) return simpDict[phrase];
+    for (const key of Object.keys(simpDict)) {
+      if (key.toLowerCase() === lower) return simpDict[key];
+    }
+  }
+
+  const sysDict = translations[langKey];
+  if (sysDict) {
+    if (phrase in sysDict) return sysDict[phrase];
+    for (const key of Object.keys(sysDict)) {
+      if (key.toLowerCase() === lower) return sysDict[key];
+    }
+  }
+
+  const univDict = UNIVERSAL_PHRASE_GLOSSARY[langKey];
+  if (univDict && univDict[lower]) {
+    return univDict[lower];
+  }
+
+  return null;
+}
+
+function composeSynchronousUiTranslation(trimmed: string, langKey: LanguageCode): string | null {
+  const univDict = UNIVERSAL_PHRASE_GLOSSARY[langKey];
+  const screenDict = UI_SCREEN_DICTIONARY[langKey];
+  if (!univDict && !screenDict) return null;
+
+  // Build sorted candidate lookup keys (longest first) from exact phrase + glossary
+  const combinedMap: Record<string, string> = {};
+  if (screenDict) {
+    for (const [k, v] of Object.entries(screenDict)) {
+      if (v) combinedMap[k.toLowerCase()] = v;
+    }
+  }
+  if (univDict) {
+    for (const [k, v] of Object.entries(univDict)) {
+      if (v) combinedMap[k.toLowerCase()] = v;
+    }
+  }
+
+  const keys = Object.keys(combinedMap).filter((k) => k.length >= 3).sort((a, b) => b.length - a.length);
+  let working = trimmed;
+  let replacedAny = false;
+
+  for (const key of keys) {
+    if (!working.toLowerCase().includes(key)) continue;
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(?<![A-Za-z])${escaped}(?![A-Za-z])`, 'gi');
+    if (regex.test(working)) {
+      working = working.replace(regex, combinedMap[key]);
+      replacedAny = true;
+    }
+  }
+
+  return replacedAny ? working : null;
+}
+
+export const translate = (text: string, selectedLanguage: string, depth: number = 0): string => {
+  if (!text) return text;
   const trimmed = text.trim();
   if (!trimmed) return text;
 
-  // Simple quick guard to avoid auto-translating things that are numeric values
-  if (/^\d+(\.\d+)?%?$/.test(trimmed)) return text;
+  // Simple quick guard to avoid auto-translating pure numeric/unit tokens
+  if (/^[\d.,+\-/%°]+(\s?(MB|GB|KB|ms|bpm|mmHg|°C|kg))?$/i.test(trimmed)) return text;
 
   const oldKeyFallbackMap: Record<string, string> = {
     'Home Dashboard': 'Home Screen',
-    'AI Consultation': 'Talk to Doctor',
+    'AI Consultation': 'Medbot',
+    'Care AI': 'Medbot',
     'Longevity & DNA Lab': 'Long Life Lab',
     'Anatomy Illustrator': 'Body Pictures',
     'Neural Core Trainer': 'Train Doctor',
@@ -3360,72 +4108,53 @@ export const translate = (text: string, selectedLanguage: string): string => {
   const lookupKey = oldKeyFallbackMap[trimmed] || trimmed;
   const langKey = normalizeLanguageCode(selectedLanguage);
 
-  // English does not require further parsing
+  // English keeps original text cleanly (only normalizing Care AI -> Medbot if needed)
   if (langKey.startsWith('English')) {
-    return text;
+    return trimmed === 'Care AI' ? 'Medbot' : text;
   }
 
-  // 0a. Check UI Screen Dictionary (Exact & Case-insensitive)
-  const screenDict = UI_SCREEN_DICTIONARY[langKey];
-  if (screenDict) {
-    if (lookupKey in screenDict) return screenDict[lookupKey];
-    const lowerLookup = lookupKey.toLowerCase();
-    for (const key of Object.keys(screenDict)) {
-      if (key.toLowerCase() === lowerLookup) {
-        return screenDict[key];
+  // 1. Exact / Case-insensitive match across UI Screen Dictionary, Offline Simplifications, Main Translations & Universal Glossary
+  const exactHit = lookupExactDictionaryTranslation(lookupKey, langKey);
+  if (exactHit) return exactHit;
+
+  // 2. Strip trailing punctuation (: / ... / ! / ?) and retry exact dictionary match
+  const punctMatch = lookupKey.match(/^(.+?)([:!?…]+)$/);
+  if (punctMatch && depth < 2) {
+    const baseHit = lookupExactDictionaryTranslation(punctMatch[1].trim(), langKey);
+    if (baseHit) return `${baseHit}${punctMatch[2]}`;
+  }
+
+  // 3. Compound separator splitting (e.g. "HR 72 bpm · SpO2 98%" or "Doctor Consultation / Offline")
+  if (depth < 2) {
+    for (const sep of [' · ', ' • ', ' | ', ' / ', ': ', ' - ']) {
+      if (lookupKey.includes(sep)) {
+        const parts = lookupKey.split(sep);
+        if (parts.length > 1 && parts.length <= 5) {
+          const translatedParts = parts.map((p) => translate(p.trim(), langKey, depth + 1));
+          if (translatedParts.some((tp, i) => tp !== parts[i].trim())) {
+            return translatedParts.join(sep);
+          }
+        }
       }
     }
   }
 
-  // 0b. Check Simplified Offline Translations
-  if (simplifiedOfflineTranslations[langKey]) {
-    const matched = simplifiedOfflineTranslations[langKey][lookupKey];
-    if (matched) return matched;
-    
-    // Case-insensitive check
-    const lowerLookup = lookupKey.toLowerCase();
-    for (const key of Object.keys(simplifiedOfflineTranslations[langKey])) {
-      if (key.toLowerCase() === lowerLookup) {
-        return simplifiedOfflineTranslations[langKey][key];
-      }
-    }
-  }
-
-  const systemTranslations = translations[langKey];
-  
-  // 1. Check Pre-compiled static translations
-  if (systemTranslations) {
-    if (lookupKey in systemTranslations) {
-      return systemTranslations[lookupKey];
-    }
-
-    // Case-insensitive static check
-    const lowerLookup = lookupKey.toLowerCase();
-    for (const key of Object.keys(systemTranslations)) {
-      if (key.toLowerCase() === lowerLookup) {
-        return systemTranslations[key];
-      }
-    }
-  }
-
-  // 2. Check local dynamically downloaded translations cache
+  // 4. LocalStorage dynamic cache
   let localCache: any = {};
   let cacheModified = false;
   try {
     localCache = JSON.parse(localStorage.getItem("local_translations_cache") || '{}');
   } catch (_) {}
 
-  // Sanitize local cache to discard corrupted, AI-synapsed translations
   for (const lang of Object.keys(localCache)) {
     if (localCache[lang] && typeof localCache[lang] === 'object') {
       for (const key of Object.keys(localCache[lang])) {
         const val = localCache[lang][key];
         if (typeof val === 'string' && (
           val.includes('Clinical Synapse') ||
-          val.includes('Doctorian') ||
           val.includes('🧠') ||
           val.includes('🩺') ||
-          val.length > 80
+          val.length > 140
         )) {
           delete localCache[lang][key];
           cacheModified = true;
@@ -3443,24 +4172,32 @@ export const translate = (text: string, selectedLanguage: string): string => {
     } catch (_) {}
   }
 
+  if (localCache[langKey] && localCache[langKey][trimmed]) {
+    return localCache[langKey][trimmed];
+  }
   if (localCache[selectedLanguage] && localCache[selectedLanguage][trimmed]) {
     return localCache[selectedLanguage][trimmed];
   }
 
-  // 3. Dynamic Prefix Translation (e.g. "Welcome Dr. Jane Doe" -> Translation of "Welcome Dr." + " Jane Doe")
+  // 5. Dynamic Prefix Translation ("Welcome Dr. ..." / "Good Morning, ...")
   if (trimmed.toLowerCase().startsWith('welcome dr.')) {
-    const welcomeTrans = (systemTranslations && systemTranslations['Welcome Dr.']) || 
-                         (localCache[selectedLanguage] && localCache[selectedLanguage]['Welcome Dr.']) || 
-                         'Welcome Dr.';
-    const doctorName = trimmed.substring(12);
-    return `${welcomeTrans} ${doctorName}`;
+    const welcomeTrans = lookupExactDictionaryTranslation('Welcome Dr.', langKey) || 'Welcome Dr.';
+    return `${welcomeTrans} ${trimmed.substring(11).trim()}`;
   }
 
-  // 4. Trigger Dynamic Automatic Background Translation
+  // 6. Synchronous Multi-Word Phrase & Gloss Composer (never leaves longer headings/labels in English)
+  if (depth < 2) {
+    const composed = composeSynchronousUiTranslation(lookupKey, langKey);
+    if (composed && composed !== lookupKey) {
+      return composed;
+    }
+  }
+
+  // 7. Trigger background enrichment only when truly unmapped & online
   if (isMarianMTModeActive()) {
-    triggerMarianOfflineTranslation(trimmed, selectedLanguage);
-  } else {
-    fetchTranslationInBackground(trimmed, selectedLanguage);
+    triggerMarianOfflineTranslation(trimmed, langKey);
+  } else if (typeof navigator !== 'undefined' && navigator.onLine) {
+    fetchTranslationInBackground(trimmed, langKey);
   }
 
   return text;

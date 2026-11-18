@@ -281,6 +281,72 @@ export const OFFLINE_CLINICAL_CONDITIONS: OfflineConditionNode[] = [
     ],
     supportiveCare: ['Consistent 7-8h sleep schedule, reduce caffeine/alcohol, daily sunlight & physical movement', 'Connect with trusted family, clinician, or Butabika/Mental Health helpline'],
     dangerSigns: ['Any thoughts of self-harm or suicide -> Immediate 24/7 crisis intervention & human clinical evaluation']
+  },
+  {
+    id: 'headache_migraine',
+    title: 'Headache, Tension Headache & Migraine Assessment',
+    category: 'Neurology & Primary Care',
+    keywords: ['headache', 'migraine', 'omutwe', 'kichwa', 'akou', 'wic', 'dri', 'head pain', 'throbbing head'],
+    icd10: 'G43.9',
+    overview: 'Primary headaches (tension, migraine) vs secondary red-flag causes (malaria, hypertension, sinusitis, meningitis). Differentiating vascular aura from infectious febrile headache is critical.',
+    symptoms: ['Throbbing one-sided or band-like bilateral head pain', 'Sensitivity to light (photophobia) or sound', 'Nausea or visual aura spots', 'Check temperature & BP to rule out malaria or hypertension'],
+    diagnostics: ['Blood Pressure measurement', 'Temperature & Malaria RDT check if febrile', 'Neurological neck-stiffness (Kernig/Brudzinski) exam'],
+    firstLineTreatment: [
+      'Tension / Fever-Associated Headache: Paracetamol 500mg-1000mg every 6-8 hours.',
+      'Acute Migraine: Ibuprofen 400-600mg (take early with food if no ulcer/bleeding risk) + rest in a quiet, dark room.',
+      'Recurrent Migraine Prevention: Hydration >=2.5L/day, trigger diary, Propranolol or Amitriptyline per physician.'
+    ],
+    supportiveCare: ['Cool cloth forehead compress', 'Quiet darkened rest & consistent hydration', 'Limit caffeine rebound & screen glare'],
+    dangerSigns: ['Sudden worst thunderclap headache, stiff neck + high fever, confusion, seizures, vision loss, or BP >=180/120 -> STAT Emergency Hospital Care']
+  },
+  {
+    id: 'skin_allergy',
+    title: 'Skin Rash, Allergy, Eczema & Fungal Infections',
+    category: 'Dermatology & Allergy',
+    keywords: ['rash', 'skin', 'itch', 'itching', 'allergy', 'hives', 'fungal', 'ringworm', 'eczema', 'olususu', 'ngozi', 'scabies'],
+    icd10: 'L30.9',
+    overview: 'Cutaneous hypersensitivity, superficial dermatophyte/fungal infections (Tinea), bacterial pyoderma, or parasitic scabies.',
+    symptoms: ['Raised itchy wheals/hives (urticaria)', 'Annular scaly plaques (ringworm)', 'Burrows in finger webs worst at night (scabies)', 'Warm spreading redness/pus (cellulitis)'],
+    diagnostics: ['Clinical lesion distribution check', 'Rule out fever/systemic drug reaction (Stevens-Johnson warning)'],
+    firstLineTreatment: [
+      'Itching / Acute Allergy: Cetirizine 10mg once daily (adults) + Calamine lotion or gentle Hydrocortisone 1% cream for non-infected eczema flares.',
+      'Fungal / Ringworm: Clotrimazole 1% or Miconazole cream applied twice daily for 2-4 weeks.',
+      'Scabies: Permethrin 5% cream or Benzyl Benzoate emulsion neck-to-toes overnight; treat close household contacts & wash bedding in hot water.'
+    ],
+    supportiveCare: ['Wear loose breathable cotton clothing', 'Keep nails trimmed short to prevent secondary bacterial scratching infection'],
+    dangerSigns: ['Swollen lips/tongue/throat or wheezing (Anaphylaxis), blistering inside mouth/eyes, or rapidly spreading purple bruising + high fever -> STAT Emergency']
+  },
+  {
+    id: 'urti_flu_ent',
+    title: 'Upper Respiratory Tract Infection, Flu, Sore Throat & Sinusitis',
+    category: 'ENT & Primary Care',
+    keywords: ['flu', 'cold', 'sore throat', 'cough', 'runny nose', 'sinus', 'tonsils', 'sennyiga', 'mafua', 'ear pain', 'throat'],
+    icd10: 'J06.9',
+    overview: 'Most acute upper respiratory colds and mild sore throats are self-limiting viral infections (5-7 days) requiring hydration and symptom control rather than unnecessary antibiotics.',
+    symptoms: ['Nasal congestion / rhinorrhea', 'Scratchy or painful throat (pharyngitis)', 'Dry irritating cough & mild malaise', 'Facial sinus pressure or mild ear fullness'],
+    diagnostics: ['Throat inspection for tonsillar exudate (Centor criteria)', 'Temperature & SpO2 check to exclude lower pneumonia'],
+    firstLineTreatment: [
+      'Viral Flu / Cold: Steam inhalation, warm honey-lemon tea (>1 yr old), saline nasal drops, Paracetamol 500mg-1g every 6-8h.',
+      'Confirmed Bacterial Strep Tonsillitis (high fever, pus spots on tonsils, tender neck nodes, NO cough): Phenoxymethylpenicillin (Pen V) 500mg QDS x10 days OR Amoxicillin 500mg TDS x7 days.'
+    ],
+    supportiveCare: ['Warm salt-water gargle (1/2 tsp salt in warm glass of water) 3x/day', '2-3L warm fluids daily & sleep elevation'],
+    dangerSigns: ['Difficulty swallowing saliva / drooling, muffled hot-potato voice, noisy breathing (stridor), chest pain, or SpO2 <92% -> Immediate Clinic Evaluation']
+  },
+  {
+    id: 'musculoskeletal_pain',
+    title: 'Back Pain, Joint Pain, Arthritis & Muscle Strain',
+    category: 'Musculoskeletal',
+    keywords: ['back pain', 'joint pain', 'knee', 'arthritis', 'muscle', 'sprain', 'omugongo', 'maumivu ya mgongo', 'body ache'],
+    icd10: 'M54.5',
+    overview: 'Mechanical lumbar strain, osteoarthritis, or inflammatory joint pain. Gentle mobility recovers faster than prolonged strict bed rest.',
+    symptoms: ['Localized lower back or knee stiffness/aching', 'Pain worse after heavy lifting or prolonged sitting', 'Mild joint swelling after strain'],
+    diagnostics: ['Range-of-motion check', 'Screen for fever/malaria (systemic myalgia) or numbness down the leg (sciatica)'],
+    firstLineTreatment: [
+      'Acute Strain / OA Flare: Topical Diclofenac gel massage 3x/day + Paracetamol 1g TDS (add Ibuprofen 400mg BD with food for 3-5 days ONLY if no stomach ulcer/kidney issues).',
+      'Initial 48h Acute Sprain: RICE protocol (Rest, Ice/cool wrap 15 min, Compression elastic bandage, Elevation).'
+    ],
+    supportiveCare: ['Warm compress after 48h for muscle tightness', 'Gentle core & hamstring stretching; ergonomic lifting posture'],
+    dangerSigns: ['Loss of bladder/bowel control, saddle numbness, progressive leg weakness, trauma fracture, or hot red swollen single joint + high fever -> Urgent Orthopedic/Emergency Care']
   }
 ];
 
@@ -390,7 +456,7 @@ const LAB_INTERPRETERS: Array<{
     guidance: 'Hb <11 g/dL indicates mild/moderate anemia; Hb <7 g/dL (or <5 g/dL in children with distress) is severe anemia requiring urgent transfusion workup & malaria/hookworm screening.'
   },
   {
-    keywords: ['glucose', 'sugar', 'rbs', 'fbs', 'hba1c'],
+    keywords: ['glucose', 'sugar', 'rbs', 'fbs', 'hba1c', 'sukari', 'sukaali'],
     title: 'Blood Glucose & HbA1c',
     normalRange: 'Fasting: 3.9–5.6 mmol/L (70–100 mg/dL) | Random 2h Post-Meal: <7.8 mmol/L (<140 mg/dL) | HbA1c: <5.7%',
     guidance: 'Fasting >=7.0 mmol/L (126 mg/dL) or HbA1c >=6.5% meets Diabetes criteria; <3.9 mmol/L (70 mg/dL) is acute Hypoglycemia requiring immediate fast-acting sugar.'
@@ -415,86 +481,366 @@ const LAB_INTERPRETERS: Array<{
   }
 ];
 
-function detectLanguageHeader(norm: string, targetLanguage?: string): { tag: string; greeting: string; footer: string } {
+interface UgandanLangProfile {
+  code: string;
+  label: string;
+  keywords: string[];
+  greeting: string;
+  introGeneral: string;
+  symptomSectionLabel: string;
+  treatmentSectionLabel: string;
+  careSectionLabel: string;
+  dangerSectionLabel: string;
+  followUpQuestion: string;
+  footer: string;
+  localSymptomHints: Record<string, string>;
+}
+
+const UGANDAN_LANGUAGE_PROFILES: UgandanLangProfile[] = [
+  {
+    code: 'Luganda',
+    label: 'Luganda',
+    keywords: [
+      'luganda', 'oli otya', 'gyebaleko', 'wasuze otya', 'osibye otya', 'osiibye otya', 'omusujja', 'olubuto',
+      'okuddukana', 'omutwe', 'ekifuba', 'okusesema', 'obulwadde', 'eddagala', 'omusawo', 'ddwaliro',
+      'puleesa', 'sukaali', 'omusaayi', 'obulumi', 'webale', 'ssebo', 'nnyabo', 'nnyamba', 'nkola ntya',
+      'kiki', 'lwaki', 'omwana', 'sennyiga', 'embuto', 'amazzi', 'okukolola'
+    ],
+    greeting: 'Gyebaleko! Nze Medbot (Doctorian AI) — ndi wano okukuyamba buli kiseera mu Luganda, ne bwe wataba yintaneeti.',
+    introGeneral: 'Ntegedde ekibuuzo kyo. Laba obuyambi n’amagezi ag’amangu mu Luganda n’Olungereza:',
+    symptomSectionLabel: 'Obubonero n’Okukebera',
+    treatmentSectionLabel: 'Eddagala n’Obujjanjabi (WHO / Uganda Clinical Guidelines)',
+    careSectionLabel: 'Okwekuuma n’Eby’Awaka',
+    dangerSectionLabel: 'Obubonero obw’Obulabe (Genda mu Ddwaliro Amangu)',
+    followUpQuestion: 'Obubonero buno bumaze nnaku mmeka, era olina omusujja oba okusesema?',
+    footer: 'Weetegereze: Bwe kiba nga obubonero bukola nnyo oba bukomeza, yanguwa olabe omusawo oba ddwaliro erikumpi (Essimu y’Amangu: 999 / 112).',
+    localSymptomHints: {
+      malaria: 'Omusujja gw’ensiri (Malaria): Kebera mu labu (mRDT) oyambibwe ne Coartem okumala ennaku 3 ng’olya emmere erimu amasavu, onywe amazzi mangi ne Paracetamol.',
+      typhoid: 'Omusujja gw’omu byenda (Typhoid): Nywa amazzi amafumbe gokka, onaabe engalo, era olabe omusawo okukukebereza omusaayi.',
+      pneumonia: 'Obulwadde bw’ekifuba / Okukolola: Bwe wabaawo okussa okw’amangu oba obulumi mu kifuba, genda mu ddwaliro bakebere omukka gwa Oxygen.',
+      cholera_diarrhea: 'Okuddukana n’Okusesema: Tabula ORS mu lita emu y’amazzi amafumbe onywe buli lwe weddukana; abaana bawe Zinc.',
+      hypertension: 'Puleesa y’Omusaayi: Kendeeza omunnyo omungi, wummula bulungi, era tomira ddagala lya puleesa nga tobuuzizza musawo.',
+      diabetes: 'Sukaali mu Musaayi: Kebera sukaali buli kiseera, wewale ebyokunywa ebiwoomerera ennyo, era kuuma ebigere byo nga biyonjo.',
+      maternal_preeclampsia: 'Olubuto n’Obulamu bw’Omukyala: Genda ku ddwaliro ly’abazadde (ANC) okukebera puleesa; bwe wabaawo okukulukuta omusaayi oba omutwe omungi yanguwa okujjanjabibwa.',
+      headache_migraine: 'Omutwe Oguluma: Kebera puleesa n’ebbugumu, wummula mu kifo ekisirifu, nywa amazzi agamala era kozesa Paracetamol bwe kiba kyetaagisa.'
+    }
+  },
+  {
+    code: 'Swahili',
+    label: 'Kiswahili',
+    keywords: [
+      'swahili', 'kiswahili', 'jambo', 'habari', 'hujambo', 'mambo', 'shikamo', 'maumivu', 'homa', 'kichwa',
+      'tumbo', 'kuharisha', 'kikohozi', 'dawa', 'daktari', 'hospitali', 'presha', 'kisukari', 'mimba',
+      'mtoto', 'nisaidie', 'asante', 'nini', 'vipi', 'kwa nini', 'kutapika', 'kifua', 'damu', 'afya'
+    ],
+    greeting: 'Habari! Mimi ni Medbot (Doctorian AI) — niko tayari kukusaidia wakati wote kwa Kiswahili hata bila mtandao.',
+    introGeneral: 'Nimeelewa swali lako vizuri. Haya hapa ni maelezo na ushauri wa kiafya kwa Kiswahili:',
+    symptomSectionLabel: 'Dalili na Uchunguzi',
+    treatmentSectionLabel: 'Matibabu na Dawa (Miongozo ya WHO / Uganda)',
+    careSectionLabel: 'Huduma ya Nyumbani na Maji',
+    dangerSectionLabel: 'Dalili za Hatari (Fika Hospitali Haraka)',
+    followUpQuestion: 'Dalili hizi zimekaa kwa siku ngapi, na je, kuna homa au kupumua kwa shida?',
+    footer: 'Ushauri wa Kliniki: Ikiwa dalili zinazidi kuwa mbaya, tafadhali fika kituo cha afya au piga simu ya dharura 999 / 112.',
+    localSymptomHints: {
+      malaria: 'Malaria (Homa ya Mbu): Fanya kipimo cha mRDT, tumia Coartem kwa siku 3 pamoja na chakula, kunywa maji mengi na Paracetamol.',
+      typhoid: 'Homa ya Matumbo (Typhoid): Kunywa maji yaliyochemshwa pekee, nawa mikono kwa sabuni, na muone daktari kwa kipimo cha damu.',
+      pneumonia: 'Kifua na Nimonia: Iwapo kuna kikohozi kikali au kupumua haraka, pima SpO2 na muone daktari kwa antibiotiki sahihi.',
+      cholera_diarrhea: 'Kuharisha na Kutapika: Changanya pakiti 1 ya ORS katika lita 1 ya maji safi yaliyochemshwa; watoto wapewe Zinc.',
+      hypertension: 'Shinikizo la Damu (Presha): Punguza chumvi nyingi, fanya mazoezi mepesi, na usikose dawa za presha.',
+      diabetes: 'Kisukari: Pima sukari mara kwa mara, kula vyakula vyenye nyuzinyuzi, na kagua miguu kila siku.',
+      maternal_preeclampsia: 'Afya ya Mama Mjamzito: Hudhuria kliniki ya wajawazito (ANC) kupima presha; kutokwa na damu au maumivu makali ya kichwa ni dharura.',
+      headache_migraine: 'Maumivu ya Kichwa: Pima presha na joto la mwili, pumzika sehemu tulivu, kunywa maji mengi na tumia Paracetamol.'
+    }
+  },
+  {
+    code: 'Runyankole-Rukiga',
+    label: 'Runyankole / Rukiga',
+    keywords: [
+      'runyankole', 'rukiga', 'agandi', 'oraire ota', 'osibire ota', 'omushwija', 'enda', 'omutwe',
+      'okusesema', 'okucucuka', 'omubazi', 'omushaho', 'eirwariro', 'eshagama', 'omwana', 'oburwaire',
+      'webare', 'nyamba', 'ahabwaki', 'kiki', 'orukororo', 'amagara'
+    ],
+    greeting: 'Agandi! Oraire gye? Ndi Medbot (Doctorian AI) — ninkuhwera omu Runyankole-Rukiga obwire bwona, n’obu hatakuba hariho intaneeti.',
+    introGeneral: 'Naayetegyereza ekibuuzo kyawe. Reeba obuhabuzi bw’ebyamagara omu Runyankole-Rukiga:',
+    symptomSectionLabel: 'Obubonero n’Okukebera',
+    treatmentSectionLabel: 'Emibazi n’Obujanjabi (WHO / UCG)',
+    careSectionLabel: 'Okwekuuma Omuka',
+    dangerSectionLabel: 'Obubonero Bubi Munonga (Genda omu Irwariro Ahonaaho)',
+    followUpQuestion: 'Obubonero obu bumazire ebiro bingahi, kandi oine omushwija ninga okusesema?',
+    footer: 'Obwebembezi bw’ebyamagara: Oburwaire bwona obukureeta obubonero bubi nibwetenga okureeba omushaho ahonaaho (999 / 112).',
+    localSymptomHints: {
+      malaria: 'Omushwija gw’emibu (Malaria): Kebera eshagama (mRDT), mira Coartem ebiro 3 hamwe n’ekyokurya, nywa amaizi maingi na Paracetamol.',
+      cholera_diarrhea: 'Okwirukana: Tabura ORS omu lita emwe y’amaizi agafumbirwe onywe buri kucucuka.',
+      hypertension: 'Puresha y’eshagama: Kyeendeza omwonyo omu byokurya kandi ogume nokebeza puresha yawe.',
+      headache_migraine: 'Omutwe ogurikushasha: Kebera puresha n’omushwija, humura ahantu hasirire kandi onywe amaizi maingi.'
+    }
+  },
+  {
+    code: 'Acholi-Luo',
+    label: 'Acholi / Luo',
+    keywords: [
+      'acholi', 'luo', 'itye maber', 'kop ango', 'ibuto maber', 'lyeto', 'wic', 'aona', 'ngok',
+      'yat', 'daktari', 'ot yat', 'remo', 'latin', 'kony', 'apwoyo', 'pingo', 'nining', 'yotkom', 'cogo', 'cwiny'
+    ],
+    greeting: 'Itye maber? An aye Medbot (Doctorian AI) — atye kany me konyi i leb Acholi cawa ducu, kadi bed intanet peke.',
+    introGeneral: 'Aniang lapeny meri. Nen tam ki kony me yotkom i leb Acholi:',
+    symptomSectionLabel: 'Lanyut me Two ki Ngiyo Kom',
+    treatmentSectionLabel: 'Yat ki Kony me Ot Yat (WHO / UCG)',
+    careSectionLabel: 'Gwoko Kom i Gang',
+    dangerSectionLabel: 'Lanyut Marac (Cit i Ot Yat Oyotoyot)',
+    followUpQuestion: 'Two man dong orii pi nino adi, dok komi tye ka lyet onyo tye ka ngok?',
+    footer: 'Tam me yotkom: Ka two winyo marac matek, cit i ot yat oyotoyot onyo goy cim 999 / 112.',
+    localSymptomHints: {
+      malaria: 'Two Malaria (Lyeto kom): Ngi remo (mRDT), mat Coartem pi nino 3 kacel ki cam, mat pii madwong ki Paracetamol.',
+      cholera_diarrhea: 'Cado ic: Rub ORS i lita acel me pii ma gitedo ci imat i nge cado ic ducu; mi Zinc bot lutino.',
+      pneumonia: 'Aona ki Kor ma Lit: Ka yamo ocung onyo yweyo tek, cit i ot yat me pimo yamo (SpO2).'
+    }
+  },
+  {
+    code: 'Langi',
+    label: 'Langi',
+    keywords: [
+      'langi', 'itye aber', 'ibuto aber', 'iriyo aber', 'lyeto kom', 'yic', 'wic', 'aona', 'ngok',
+      'yat', 'daktari', 'ot yat', 'remo', 'atin', 'kony', 'apwoyo', 'piingo', 'yotkom'
+    ],
+    greeting: 'Itye aber? An aye Medbot (Doctorian AI) — atye me konyi i leb Langi cawa ducu, kadi intanet pe.',
+    introGeneral: 'Aniang apeny meri aber. Nen tam me yotkom i leb Langi:',
+    symptomSectionLabel: 'Anyut me Two',
+    treatmentSectionLabel: 'Yat ki Cango (WHO / UCG)',
+    careSectionLabel: 'Gwoko Kom Paco',
+    dangerSectionLabel: 'Anyut Marac (Wot i Ot Yat Oyotoyot)',
+    followUpQuestion: 'Two man orii nino adi, dok ikom tye ka lyet?',
+    footer: 'Tam me yotkom: Ka two mede arac, nen daktari i ot yat oyotoyot (999 / 112).',
+    localSymptomHints: {
+      malaria: 'Two Malaria: Pimo remo (mRDT), mat Coartem nino 3 ki cam, mat pii ame otedo ki Paracetamol.',
+      cholera_diarrhea: 'Cado yic: Rub ORS i lita acel me pii ame otedo imat.'
+    }
+  },
+  {
+    code: 'Iteso',
+    label: 'Iteso (Ateso)',
+    keywords: [
+      'iteso', 'ateso', 'yoga', 'ejokona', 'iboi biai', 'adeka', 'emusugut', 'akoik', 'akou',
+      'iwala', 'aojan', 'ekiyait', 'dokta', 'adekis', 'aot', 'ikoku', 'ingarakin', 'eyalama', 'kanukinyo', 'angaleu'
+    ],
+    greeting: 'Yoga! Ejokona? Araisi eong Medbot (Doctorian AI) — ejai ne aingarakin jo ko Ateso apaaran kere, karaida mam intanet ejai.',
+    introGeneral: 'Aanyu akiro kon. Koany aingarakinet naka angaleu ko Ateso:',
+    symptomSectionLabel: 'Aanyuneta nuka Adeka',
+    treatmentSectionLabel: 'Iyatun ka Aitanag (WHO / UCG)',
+    careSectionLabel: 'Aidar Angaleu Ore',
+    dangerSectionLabel: 'Aanyuneta nu Aronis (Kolot Adeko Atipet)',
+    followUpQuestion: 'Irwan aanyuneta nu apaarasia aiboi, arai ejai emusugut?',
+    footer: 'Aanyun emurwon ejok na epedori aikony jo. Kolot adekis atipet arai ejaasi aanyuneta nu aronis (999 / 112).',
+    localSymptomHints: {
+      malaria: 'Emusugut (Malaria): Koom aot (mRDT), komat Coartem apaarasia 3 ka inyamat, komat akipi nu ipokoi ka Paracetamol.',
+      cholera_diarrhea: 'Ailele akoik: Kitonyik ORS toma olita ediopet loka akipi nu ipokoi komat.'
+    }
+  },
+  {
+    code: 'Lusoga',
+    label: 'Lusoga',
+    keywords: [
+      'lusoga', 'kodheyo', 'wasuze otya', 'osiibye otya', 'omusudha', 'enda', 'omutwe', 'okusesema',
+      'obulwaire', 'eddagala', 'omusawo', 'iddwaliro', 'omusaayi', 'omwana', 'webale', 'nyamba', 'lwaki'
+    ],
+    greeting: 'Kodheyo! Ndi Medbot (Doctorian AI) — ndi hano okukuyamba mu Lusoga buli kaseera, ne bw’oba tolina mutimbagano.',
+    introGeneral: 'Ntegeire ekibuuzo kyo. Bona amagezi g’obulamu mu Lusoga:',
+    symptomSectionLabel: 'Obubonero n’Okukebera',
+    treatmentSectionLabel: 'Eddagala n’Obujjanjabi (WHO / UCG)',
+    careSectionLabel: 'Okwekuuma Eka',
+    dangerSectionLabel: 'Obubonero obw’Obulabe (Genda mu Iddwaliro Mangu)',
+    followUpQuestion: 'Obubonero buno bumaze enaku mmeka, era olina omusudha?',
+    footer: 'Okubona omusawo kiba kirungi singa obulwaire bweyongera (Essimu y’Amangu: 999 / 112).',
+    localSymptomHints: {
+      malaria: 'Omusudha (Malaria): Kebera omusaayi (mRDT), mira Coartem enaku 3 n’ebyokulya, nywa amaadhi mangi ne Paracetamol.',
+      cholera_diarrhea: 'Okuddukana: Tabula ORS mu liita y’amaadhi amafumbe onywe buli kiseera.'
+    }
+  },
+  {
+    code: 'Lugbara',
+    label: 'Lugbara',
+    keywords: [
+      'lugbara', 'mi mi maber', 'asizu', 'nyi ngoni', 'azo', "o'du", 'ovu', 'dri', 'okpa', 'ari',
+      'drakpi', 'otuu yat', 'aria', 'mva', 'aza ko', 'awadifo', 'aduni'
+    ],
+    greeting: 'Mi mi maber? Asizu! Ama Medbot (Doctorian AI) — ama dri azako mi ma alea Lugbara ti saa dria, intanet ku ra.',
+    introGeneral: 'Ma ni ta mi ma eri. Ne azako idri be Lugbara ti alia:',
+    symptomSectionLabel: 'Azo Ma Etu (Symptoms)',
+    treatmentSectionLabel: 'Ari be Drakpi Azako (WHO / UCG)',
+    careSectionLabel: 'Idri Gbo Jo Alia',
+    dangerSectionLabel: 'Azo Ma Onzi (Mu Otuu Yat Alia Kini)',
+    followUpQuestion: 'Azo di eca o’du ingo, ani dri o’du eyo ku ra?',
+    footer: 'Mide ba daktari ma niri maber kpere; mu otuu yat alia azo ma onzi (999 / 112).',
+    localSymptomHints: {
+      malaria: 'Malaria: Ndi aria (mRDT), mvu Coartem o’du na ni nyaka be, mvu yi tro tro be Paracetamol.',
+      cholera_diarrhea: 'Ovu: Di ORS lita alu yi ma alia mvu.'
+    }
+  },
+  {
+    code: 'Runyoro-Rutooro',
+    label: 'Runyoro / Rutooro',
+    keywords: [
+      'runyoro', 'rutooro', 'oraire ota', 'osiibire ota', 'orukutu', 'omuswija', 'oburwire',
+      'omubazi', 'omushaho', 'eirwariro', 'eshagama', 'nkonya', 'webale', 'nyamba'
+    ],
+    greeting: 'Oraire ota! Ndi Medbot (Doctorian AI) — ndi hanu kukukonyera omu Runyoro-Rutooro obwire bwona, n’obu haraba hataroho intaneeti.',
+    introGeneral: 'Nyetegereze ekikaguzo kyawe. Rora obuhabuzi bw’obwomeezi omu Runyoro-Rutooro:',
+    symptomSectionLabel: 'Oburorero n’Okukebera',
+    treatmentSectionLabel: 'Emibazi n’Obujanjabi (WHO / UCG)',
+    careSectionLabel: 'Okwekuuma Omuka',
+    dangerSectionLabel: 'Oburorero Bubi Munonga (Genda omu Irwariro Ahonaaho)',
+    followUpQuestion: 'Oburwire bunu bumazire ebiro binga, kandi oine omuswija?',
+    footer: 'Oburwire bweyongera, rora omushaho ahonaaho omu irwariro erikuhikire (999 / 112).',
+    localSymptomHints: {
+      malaria: 'Omuswija gw’ensiri: Kebera eshagama (mRDT), mira Coartem ebiro 3 n’ebyokulya, nywa amaizi maingi na Paracetamol.'
+    }
+  },
+  {
+    code: 'Rukonjo',
+    label: 'Rukonjo',
+    keywords: [
+      'rukonjo', 'bwakire', 'wasibire ota', 'obulhwere', 'omusutsa', 'inda', 'eriruka',
+      'omubatsi', 'omusaho', 'wasingya', 'ebya magara'
+    ],
+    greeting: 'Bwakire! Ndi Medbot (Doctorian AI) — ndi hano erikuwathikya omu Rukonjo endambi syosi, n’omu bwire bw’obutabya na intaneeti.',
+    introGeneral: 'Nabiriyithegereerya ekyuwabuliire. Lebaya amagezi w’obulamu omu Rukonjo:',
+    symptomSectionLabel: 'Ebirorero by’Obulhwere',
+    treatmentSectionLabel: 'Emibatsi n’Erikererya (WHO / UCG)',
+    careSectionLabel: 'Eriyitheya eka',
+    dangerSectionLabel: 'Ebirorero Bibibibi (Genda ewa Musaho Luba)',
+    followUpQuestion: 'Obulhwere bunu bwabirimara biro bingahi?',
+    footer: 'Wasingya; obulhwere bwamayongera, genda omu ddwaliro erihikire luba (999 / 112).',
+    localSymptomHints: {
+      malaria: 'Omusutsa (Malaria): Kebulha eshagama (mRDT), mira Coartem ebiro 3 haghuma n’ebyokurya, nywa amaghetse mangi na Paracetamol.'
+    }
+  },
+  {
+    code: 'Samia',
+    label: 'Samia',
+    keywords: [
+      'samia', 'mirembe', 'obulwaye', 'ekhohola', 'eddagala', 'omusawo', 'iddwaliro', 'orio', 'shina'
+    ],
+    greeting: 'Mirembe! Ndi Medbot (Doctorian AI) — ndi hano okhukhonya mu Lusamia buli saawa, nende okhuba ne intaneeti ta.',
+    introGeneral: 'Mbulire ekhibuuzo khyo. Lola amakesi k’obulamu mu Lusamia:',
+    symptomSectionLabel: 'Obubonero bw’Obulwaye',
+    treatmentSectionLabel: 'Eddagala nende Obukhonya (WHO / UCG)',
+    careSectionLabel: 'Okhwekuuma Eka',
+    dangerSectionLabel: 'Obubonero Obubi (Cha mu Ddwaliro Bwangu)',
+    followUpQuestion: 'Obulwaye buno bumalile enaku chinga, kandi oli nende omusujja?',
+    footer: 'Orio muno; obulwaye bwaba bukhila, cha olole omusawo bwangu (999 / 112).',
+    localSymptomHints: {
+      malaria: 'Omusujja (Malaria): Kebera obusayi (mRDT), mira Coartem enaku 3 nende ebiokulya, nywa amaazi mangi.'
+    }
+  },
+  {
+    code: 'Karamojong',
+    label: 'Ngakarimojong',
+    keywords: [
+      'karamojong', 'ngakarimojong', 'mata', 'ejok', 'ngakiro', 'adeka', 'emusugut', 'akoik', 'akou',
+      'ekitoe', 'emuron', 'adekis', 'aot', 'ikoku', 'alakara'
+    ],
+    greeting: 'Mata! Ejok? Ayong Medbot (Doctorian AI) — ajai nen akiingarakin iyo ko Ngakarimojong apaarasia dadaeng, karaida mam intanet ejai.',
+    introGeneral: 'Aanyu akiro kon. Koany aingarakinet naka aijar ko Ngakarimojong:',
+    symptomSectionLabel: 'Aanyuneta nuka Adeka',
+    treatmentSectionLabel: 'Ekitoi ka Aitanag (WHO / UCG)',
+    careSectionLabel: 'Aidar Aijar Ore',
+    dangerSectionLabel: 'Aanyuneta nu Aronis (Kolot Adeko Atipet)',
+    followUpQuestion: 'Irwan aanyuneta nu apaarasia aiboi?',
+    footer: 'Alakara; kolot adekis atipet arai ejaasi aanyuneta nu aronis (999 / 112).',
+    localSymptomHints: {
+      malaria: 'Emusugut (Malaria): Koany aot (mRDT), komat Coartem apaarasia 3 ka akimuj, komat ngakipi ka Paracetamol.'
+    }
+  }
+];
+
+function detectLanguageHeader(norm: string, targetLanguage?: string): {
+  tag: string;
+  greeting: string;
+  footer: string;
+  profile?: UgandanLangProfile;
+} {
   const activeLang = (targetLanguage || '').toLowerCase();
 
-  if (
-    activeLang.includes('luganda') ||
-    ['oli otya', 'gyebaleko', 'wasuze otya', 'osibye otya', 'omusujja', 'olubuto', 'okuddukana'].some((k) => norm.includes(k))
-  ) {
-    return {
-      tag: 'Luganda',
-      greeting: '👋 **Gyebaleko!** Nze **Doctorian AI Clinical Engine** (Offline Autonomous Mode).',
-      footer: '*Weetegereze: Bwe kiba nga obubonero bukola nnyo oba bukomeza, yanguwa olabe omusawo oba ddwaliro erikumpi.*'
-    };
+  // First check explicit words inside the user prompt (auto-learns Ugandan query language)
+  for (const prof of UGANDAN_LANGUAGE_PROFILES) {
+    if (prof.keywords.some((k) => {
+      const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`(^|\\b)${escaped}(\\b|$)`, 'i').test(norm);
+    })) {
+      return {
+        tag: prof.label,
+        greeting: `👋 ${prof.greeting}`,
+        footer: `*${prof.footer}*`,
+        profile: prof
+      };
+    }
   }
-  if (
-    activeLang.includes('swahili') ||
-    ['jambo', 'habari', 'hujambo', 'mambo', 'kuharisha', 'mimba', 'homa'].some((k) => norm.includes(k))
-  ) {
-    return {
-      tag: 'Kiswahili',
-      greeting: '👋 **Jambo!** Mimi ni **Doctorian AI Clinical Engine** (Hali ya Nje ya Mtandao / Offline).',
-      footer: '*Ushauri wa Kliniki: Ikiwa dalili zinazidi kuwa mbaya au kuna dalili za hatari, tafadhali fika kituo cha afya haraka.*'
-    };
+
+  // Second check selected app/consultation language
+  for (const prof of UGANDAN_LANGUAGE_PROFILES) {
+    const codeLower = prof.code.toLowerCase();
+    const parts = codeLower.split('-');
+    if (activeLang.includes(codeLower) || parts.some((p) => p.length >= 4 && activeLang.includes(p))) {
+      return {
+        tag: prof.label,
+        greeting: `👋 ${prof.greeting}`,
+        footer: `*${prof.footer}*`,
+        profile: prof
+      };
+    }
   }
-  if (activeLang.includes('runyankole') || activeLang.includes('rukiga') || ['agandi', 'oraire ota', 'osibire ota'].some((k) => norm.includes(k))) {
-    return {
-      tag: 'Runyankole / Rukiga',
-      greeting: '👋 **Agandi!** Nze **Doctorian AI** (Offline Clinical Engine).',
-      footer: '*Obwebembezi bw’ebyamagara: Oburwaire bwona obwine obubonero bubi nibwetenga okureeba omushaho ahonaaho.*'
-    };
-  }
-  if (activeLang.includes('acholi') || activeLang.includes('luo') || ['itye maber', 'kop ango'].some((k) => norm.includes(k))) {
-    return {
-      tag: 'Acholi / Luo',
-      greeting: '👋 **Itye maber?** An aye **Doctorian AI** (Offline Clinical Engine).',
-      footer: '*Tam me yotkom: Ka two winyo marac matek, cit i ot yat oyotoyot.*'
-    };
-  }
-  if (activeLang.includes('langi') || ['itye aber'].some((k) => norm.includes(k))) {
-    return {
-      tag: 'Langi',
-      greeting: '👋 **Itye aber?** An aye **Doctorian AI** (Offline Clinical Engine).',
-      footer: '*Tam me yotkom: Ka two mede aber, nen daktari i ot yat.*'
-    };
-  }
-  if (activeLang.includes('iteso') || ['yoga', 'ejokona'].some((k) => norm.includes(k))) {
-    return {
-      tag: 'Ateso',
-      greeting: '👋 **Yoga! Ejokona?** Araisi eong **Doctorian AI** (Offline Clinical Engine).',
-      footer: '*Aanyun emurwon ejok na epedori aikony jo.*'
-    };
-  }
-  if (activeLang.includes('lusoga') || ['kodheyo'].some((k) => norm.includes(k))) {
-    return {
-      tag: 'Lusoga',
-      greeting: '👋 **Kodheyo!** Ndi **Doctorian AI** (Offline Clinical Engine).',
-      footer: '*Okubona omusawo kiba kirungi singa obulwadhe bweyongera.*'
-    };
-  }
-  if (activeLang.includes('lugbara') || ['asizu', 'mi mi maber'].some((k) => norm.includes(k))) {
-    return {
-      tag: 'Lugbara',
-      greeting: '👋 **Mi mi maber? Asizu!** Ama **Doctorian AI** (Offline Clinical Engine).',
-      footer: '*Mide ba daktari ma niri maber kpere.*'
-    };
-  }
+
   return {
     tag: 'English',
     greeting: '',
-    footer: '*Autonomous Offline Clinical Intelligence (UCG 2023/2026 & WHO Standards) — Consult a licensed clinician for definitive physical exam and prescription authorization.*'
+    footer: '*Medbot Autonomous Clinical Intelligence (UCG 2023/2026 & WHO Standards) — Consult a licensed clinician for definitive physical exam and prescription authorization.*'
   };
 }
 
+function handleGeneralOrAppQuestion(norm: string, rawMsg: string, lang: ReturnType<typeof detectLanguageHeader>): string | null {
+  const prof = lang.profile;
+
+  // Uganda hospital / ambulance / referral queries
+  if (
+    ['hospital', 'mulago', 'mbarara', 'gulu', 'mbale', 'lacor', 'mengo', 'ambulance', '999', '112', 'clinic', 'ddwaliro', 'hospitali', 'eirwariro', 'ot yat', 'adekis']
+      .some((k) => norm.includes(k)) &&
+    !norm.includes('pain') &&
+    !norm.includes('fever')
+  ) {
+    return `${lang.greeting ? lang.greeting + '\n\n' : ''}🏥 **Uganda Clinical & Emergency Referral Directory**\n---\n- **National Emergency & Ambulance:** Dial **999** or **112** (Uganda Police / Emergency Medical Services) or use **Emergency SOS** inside Doctorian.\n- **National & Regional Referral Hospitals:**\n  - **Central:** Mulago National Referral Hospital (Kampala), Kiruddu RRH, Kawempe National Referral Hospital, Mengo & Nsambya Hospitals\n  - **Western:** Mbarara RRH, Fort Portal RRH, Kabale RRH, Hoima RRH\n  - **Northern:** Gulu RRH, St. Mary's Hospital Lacor, Lira RRH, Arua RRH\n  - **Eastern:** Mbale RRH, Jinja RRH, Soroti RRH, Tororo Hospital\n\n${prof ? `**${prof.careSectionLabel}:** ${prof.footer.replace(/\*/g, '')}\n\n` : ''}${lang.footer}`;
+  }
+
+  // Nutrition / Diet / Hydration / Exercise / Weight / Healthy Living
+  if (['diet', 'food', 'nutrition', 'eat', 'vitamin', 'water', 'hydrate', 'weight', 'exercise', 'emmere', 'chakula', 'byokurya', 'akipi', 'amazzi'].some((k) => norm.includes(k))) {
+    return `${lang.greeting ? lang.greeting + '\n\n' : ''}🥗 **${prof ? prof.introGeneral : 'Clinical Nutrition & Preventive Wellness Guidance'}**\n---\n- **Balanced East African Clinical Plate:**\n  - **Energy & Fiber:** Millet (oburo), sorghum, matooke, sweet potatoes, posho, brown rice\n  - **Protein & Iron:** Beans, groundnuts, silverfish (mukene), eggs, lean meat, leafy amaranth (doodo), nakati\n  - **Hydration:** 2.0–3.0 Liters clean boiled or safe drinking water daily (more during fever/heat)\n- **Movement & Recovery:** 30 minutes brisk walking 5 days/week and 7–8 hours restful sleep strengthen immunity, blood pressure, and glucose control.\n\n${lang.footer}`;
+  }
+
+  // App help / Medbot features
+  if (['medbot', 'doctorian', 'video call', 'pharmacy', 'vault', '1gb', 'offline', 'install', 'download', 'language', 'translate', 'sms hub'].some((k) => norm.includes(k))) {
+    return `${lang.greeting ? lang.greeting + '\n\n' : ''}📱 **Medbot & Doctorian Platform Guide**\n---\n- **Medbot AI (Always-On):** Answers medical, pharmacology, lab, maternal, Ugandan-language, and general health questions 24/7 even when offline or cloud servers are disconnected.\n- **Video & Voice Clinic:** Launch live interactive clinician video calls with cardiac echo visuals, bilingual captions, and one-tap Doctor/Patient Auto-SMS dispatch.\n- **E-Pharmacy & 1GB Health Vault:** Order prescriptions safely and store medical documents locally & in your encrypted vault.\n- **12 Ugandan Languages Supported:** Switch app language anytime in the Menu/Settings — Luganda, Kiswahili, Runyankole-Rukiga, Acholi-Luo, Langi, Iteso, Lusoga, Lugbara, Runyoro-Rutooro, Rukonjo, Samia, and Karamojong.\n\n${lang.footer}`;
+  }
+
+  // Conversational thanks
+  if (['thank', 'webale', 'asante', 'apwoyo', 'eyalama', 'awadifo', 'wasingya', 'orio', 'alakara', 'ok', 'okay', 'cool', 'great'].some((k) => norm === k || norm.startsWith(k + ' '))) {
+    const thanksAck = prof
+      ? `${prof.greeting}\n\nWebale nnyo / Asante / Apwoyo! ${prof.followUpQuestion}`
+      : `You are very welcome! Stay hydrated and healthy. Ask me anytime about symptoms, medications, lab tests, Ugandan languages, or general wellness.`;
+    return thanksAck;
+  }
+
+  return null;
+}
+
 /**
- * Generates an instant, deep clinical response completely offline (<15ms)
- * combining user-trained neural cache nodes + 35+ WHO/Uganda Clinical Protocols +
- * essential drug formulary + lab analyzer + multi-symptom differential scorer.
+ * Generates an instant, deep response completely locally (<15ms)
+ * combining user-trained neural cache nodes + WHO/Uganda Clinical Protocols +
+ * essential drug formulary + lab analyzer + 12 Ugandan languages + general Q&A.
+ * Works reliably even when Cloud AI and local Ollama/offline LLMs are turned off.
  */
 export function runAutonomousOfflineMedicalAI(msg: string, targetLanguage?: string): string {
   const norm = (msg || '').toLowerCase().trim();
   const lang = detectLanguageHeader(norm, targetLanguage);
+  const prof = lang.profile;
 
   // 1. Custom Neural Training Hub cached nodes
   try {
@@ -514,7 +860,7 @@ export function runAutonomousOfflineMedicalAI(msg: string, targetLanguage?: stri
       });
       if (matchedNodes.length > 0) {
         const node = matchedNodes[0];
-        let out = `🤖 **[Offline Neural Core Node: ${node.title}]**\n\n`;
+        let out = `${lang.greeting ? lang.greeting + '\n\n' : ''}🤖 **Medbot Clinical Knowledge Node: ${node.title}**\n\n`;
         out += `${node.content}\n\n`;
         if (matchedNodes.length > 1) {
           out += `**Related Cached Protocols:** ${matchedNodes.slice(1, 4).map((m: any) => m.title).join(', ')}\n\n`;
@@ -529,27 +875,49 @@ export function runAutonomousOfflineMedicalAI(msg: string, targetLanguage?: stri
 
   // 2. Creator / Identity Metadata check
   if (
-    ['akora', 'joseph', 'ebro', 'creator', 'who made', 'who designed', 'who built'].some((k) => norm.includes(k))
+    ['akora', 'joseph', 'ebro', 'creator', 'who made', 'who designed', 'who built', 'ani yakola'].some((k) => norm.includes(k))
   ) {
-    return `👨‍💻 **Doctorian Medical AI — System Architecture**\n\nI am **Doctorian Medical AI**. **Akora Joseph from EBRO Company Ltd designed this app and the autonomous clinical neural engine** to provide resilient hospital EHR, bio-telemetry, e-pharmacy, and offline clinical decision support across East Africa and beyond.\n\nAsk me any symptom, lab value, drug dosing question, or emergency protocol!`;
+    return `${lang.greeting ? lang.greeting + '\n\n' : ''}👨‍💻 **Medbot (Doctorian Medical AI) — System Architecture**\n\n**Akora Joseph from EBRO Company Ltd** designed Doctorian and the Medbot autonomous clinical neural engine to deliver resilient hospital EHR, bio-telemetry, e-pharmacy, and 12-language Ugandan clinical intelligence online and offline.\n\nAsk any medical, medication, lab, or general question anytime!`;
   }
 
   // 3. Pure Greetings
   const pureGreetingTerms = [
     'hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 'greetings',
-    'jambo', 'hujambo', 'habari', 'oli otya', 'gyebaleko', 'wasuze otya', 'osibye otya',
-    'agandi', 'oraire ota', 'kop ango', 'itye maber', 'itye aber', 'yoga', 'ejokona', 'kodheyo', 'asizu'
+    'jambo', 'hujambo', 'habari', 'shikamo', 'mambo',
+    'oli otya', 'gyebaleko', 'wasuze otya', 'osibye otya', 'osiibye otya',
+    'agandi', 'oraire ota', 'osibire ota',
+    'kop ango', 'itye maber', 'ibuto maber', 'itye aber', 'ibuto aber', 'iriyo aber',
+    'yoga', 'ejokona', 'iboi biai', 'kodheyo', 'asizu', 'mi mi maber', 'bwakire', 'mirembe', 'mata'
   ];
   const isPureGreeting =
-    pureGreetingTerms.some((g) => norm === g || norm.startsWith(g + ' ') || norm.startsWith(g + '!')) &&
+    pureGreetingTerms.some((g) => norm === g || norm.startsWith(g + ' ') || norm.startsWith(g + '!') || norm.startsWith(g + '?')) &&
     norm.split(/\s+/).length <= 5;
 
   if (isPureGreeting) {
-    const header = lang.greeting || `👋 **Hello! I am Doctorian AI** — your autonomous offline clinical assistant (${lang.tag}).`;
-    return `${header}\n\nI run **100% locally on your device** even with zero internet access, powered by WHO & Uganda Clinical Guidelines (2023/2026). I can help you with:\n- **Symptom Differential Triage**: Fever, malaria vs typhoid, cough, chest pain, diarrhea, rashes\n- **Essential Drug Dosing**: Coartem, Augmentin, Amoxicillin, Metformin, Amlodipine, Ibuprofen\n- **Lab Interpretation**: Hb, blood glucose, malaria RDT, SpO2, kidney creatinine, CBC\n- **Maternal & Emergency First Aid**: Pre-eclampsia danger signs, burns, seizures, ORS recipe\n\nWhat clinical question or symptom would you like me to analyze?`;
+    const header = lang.greeting || `👋 **Hello! I am Medbot** — your always-on clinical & multilingual assistant (${lang.tag}).`;
+    return `${header}\n\nI run **continuously on-device** even when Cloud AI or external servers are off, fluent in all **12 Ugandan languages** (*Luganda, Kiswahili, Runyankole-Rukiga, Acholi-Luo, Langi, Iteso, Lusoga, Lugbara, Runyoro-Rutooro, Rukonjo, Samia, Karamojong*) plus English and global languages.\n\n- **Symptoms & Triage:** Malaria, typhoid, cough/pneumonia, diarrhea/ORS, blood pressure, diabetes, pregnancy, headaches, skin rashes\n- **Medicines & Dosages:** Coartem, Paracetamol, Amoxicillin, Metformin, Amlodipine, Salbutamol\n- **Lab Values & Vitals:** Hb, glucose, SpO2, BP, WBC, platelets\n- **General Questions & Guidance:** Nutrition, hospitals in Uganda, first aid, and app features\n\n${prof ? `💬 **${prof.followUpQuestion}**` : 'What would you like to ask me right now?'}`;
   }
 
-  // 4. Lab Reference Value Analyzer
+  // 4. General / Nutrition / Hospital / App Feature Queries
+  const generalReply = handleGeneralOrAppQuestion(norm, msg, lang);
+  if (generalReply) return generalReply;
+
+  // 5. Lab Reference Value Analyzer (also check numeric BP like 150/95 or Hb 7)
+  const bpMatch = norm.match(/\b(\d{2,3})\s*\/\s*(\d{2,3})\b/);
+  if (bpMatch) {
+    const sys = Number(bpMatch[1]);
+    const dia = Number(bpMatch[2]);
+    const category =
+      sys >= 180 || dia >= 120
+        ? '🚨 Hypertensive Crisis / Emergency Range (>=180/120 mmHg)'
+        : sys >= 140 || dia >= 90
+        ? '⚠️ Elevated / Stage 1–2 Hypertension Range (>=140/90 mmHg)'
+        : sys < 90 || dia < 60
+        ? '⚠️ Low Blood Pressure / Hypotension (<90/60 mmHg)'
+        : '✅ Normal to Pre-Hypertensive Range (<140/90 mmHg)';
+    return `${lang.greeting ? lang.greeting + '\n\n' : ''}🩺 **Blood Pressure Reading Analysis (${sys}/${dia} mmHg)**\n---\n- **Classification:** ${category}\n${prof?.localSymptomHints.hypertension ? `- **${prof.label}:** ${prof.localSymptomHints.hypertension}\n` : ''}- **Immediate Guidance:** Sit quietly for 5 minutes and re-measure on the upper arm. If >=180/120 mmHg with chest pain, severe headache, blurred vision, or weakness, seek emergency hospital care immediately.\n\n${lang.footer}`;
+  }
+
   const matchedLabs = LAB_INTERPRETERS.filter((l) => l.keywords.some((k) => norm.includes(k)));
   if (matchedLabs.length > 0 && (norm.includes('lab') || norm.includes('result') || norm.includes('level') || norm.includes('test') || /\d/.test(norm))) {
     const labSections = matchedLabs
@@ -559,12 +927,12 @@ export function runAutonomousOfflineMedicalAI(msg: string, targetLanguage?: stri
           `### 🧪 ${l.title}\n- **Normal Reference:** ${l.normalRange}\n- **Clinical Interpretation:** ${l.guidance}`
       )
       .join('\n\n');
-    return `${lang.greeting ? lang.greeting + '\n\n' : ''}**Offline Laboratory Reference Analyzer**\n---\n${labSections}\n\n${lang.footer}`;
+    return `${lang.greeting ? lang.greeting + '\n\n' : ''}**Medbot Laboratory Reference Analyzer (${lang.tag})**\n---\n${labSections}\n\n${lang.footer}`;
   }
 
-  // 5. Drug Formulary & Pharmacology Lookup
+  // 6. Drug Formulary & Pharmacology Lookup
   const matchedDrugs = OFFLINE_ESSENTIAL_DRUGS.filter((d) => d.keywords.some((k) => norm.includes(k)));
-  if (matchedDrugs.length > 0 && (norm.includes('dose') || norm.includes('dosage') || norm.includes('take') || norm.includes('side effect') || norm.includes('drug') || norm.includes('medicine') || norm.includes('tablet') || norm.split(/\s+/).length <= 4)) {
+  if (matchedDrugs.length > 0 && (norm.includes('dose') || norm.includes('dosage') || norm.includes('take') || norm.includes('side effect') || norm.includes('drug') || norm.includes('medicine') || norm.includes('tablet') || norm.includes('dawa') || norm.includes('eddagala') || norm.includes('omubazi') || norm.includes('yat') || norm.split(/\s+/).length <= 5)) {
     const drugCards = matchedDrugs
       .slice(0, 2)
       .map(
@@ -572,19 +940,35 @@ export function runAutonomousOfflineMedicalAI(msg: string, targetLanguage?: stri
           `### 💊 ${d.name} *(${d.class})*\n- **Primary Indications:** ${d.indications}\n- **Adult Dosing:** ${d.adultDose}\n- **Pediatric Dosing:** ${d.pediatricDose}\n- **Safety & Contraindications:** ${d.cautions}`
       )
       .join('\n\n');
-    return `${lang.greeting ? lang.greeting + '\n\n' : ''}**Offline Essential Medicines Formulary**\n---\n${drugCards}\n\n${lang.footer}`;
+    return `${lang.greeting ? lang.greeting + '\n\n' : ''}**Medbot Essential Medicines Formulary (${lang.tag})**\n---\n${drugCards}\n\n${lang.footer}`;
   }
 
-  // 6. Scored Condition & Multi-Symptom Matcher
-  const words = norm.split(/[^a-z0-9']+/).filter((w) => w.length >= 3);
+  // 7. Scored Condition & Multi-Symptom Matcher (English + Ugandan local keywords)
+  const localCrossMatches: Record<string, string[]> = {
+    malaria: ['omusujja', 'omushwija', 'omuswija', 'omusudha', 'omusutsa', 'emusugut', 'homa', 'lyeto'],
+    cholera_diarrhea: ['okuddukana', 'kuharisha', 'okwirukana', 'cado ic', 'cado yic', 'ailele akoik', 'ovu', 'eriruka'],
+    hypertension: ['puleesa', 'puresha', 'presha', 'omusaayi', 'eshagama', 'remo', 'aot', 'aria'],
+    diabetes: ['sukaali', 'sukari', 'kisukari'],
+    headache_migraine: ['omutwe', 'kichwa', 'wic', 'akou', 'dri'],
+    maternal_preeclampsia: ['olubuto', 'mimba', 'enda', 'akoik', 'yic', 'inda', 'omwana', 'latin', 'ikoku', 'atin'],
+    urti_flu_ent: ['sennyiga', 'mafua', 'ekifuba', 'aona', 'iwala', 'ekhohola', 'orukororo'],
+    peptic_ulcer: ['tumbo', 'olubuto', 'enda', 'ulcer'],
+    musculoskeletal_pain: ['omugongo', 'mgongo', 'maumivu', 'obulumi']
+  };
+
+  const words = norm.split(/[^a-z0-9']+/).filter((w) => w.length >= 2);
   const scoredConditions = OFFLINE_CLINICAL_CONDITIONS.map((cond) => {
     let score = 0;
     for (const kw of cond.keywords) {
       if (norm.includes(kw)) score += kw.includes(' ') ? 6 : 4;
     }
+    const extraLocal = localCrossMatches[cond.id] || [];
+    for (const lk of extraLocal) {
+      if (norm.includes(lk)) score += 5;
+    }
     const blob = `${cond.title} ${cond.overview} ${cond.symptoms.join(' ')} ${cond.firstLineTreatment.join(' ')}`.toLowerCase();
     for (const w of words) {
-      if (blob.includes(w)) score += 1;
+      if (w.length >= 3 && blob.includes(w)) score += 1;
     }
     return { cond, score };
   })
@@ -594,27 +978,35 @@ export function runAutonomousOfflineMedicalAI(msg: string, targetLanguage?: stri
   if (scoredConditions.length > 0) {
     const primary = scoredConditions[0].cond;
     const secondary = scoredConditions.slice(1, 3).map((s) => `${s.cond.title} (${s.cond.icd10})`);
+    const localHint = prof?.localSymptomHints?.[primary.id];
 
     let reply = `${lang.greeting ? lang.greeting + '\n\n' : ''}🩺 **${primary.title}** \`ICD-10: ${primary.icd10}\`\n---\n`;
-    reply += `- **Clinical Overview:** ${primary.overview}\n`;
-    reply += `- **Typical Presentation:** ${primary.symptoms.join(' • ')}\n`;
+    if (localHint) {
+      reply += `🌍 **${prof?.label} Guidance:** ${localHint}\n\n`;
+    }
+    reply += `- **${prof ? prof.symptomSectionLabel : 'Clinical Overview & Typical Symptoms'}:** ${primary.overview} (${primary.symptoms.join(' • ')})\n`;
     reply += `- **Recommended Workup:** ${primary.diagnostics.join(' • ')}\n`;
-    reply += `- **First-Line Protocol (WHO / UCG):**\n${primary.firstLineTreatment.map((t) => `  - ${t}`).join('\n')}\n`;
-    reply += `- **Supportive Home & Ward Care:** ${primary.supportiveCare.join(' • ')}\n\n`;
-    reply += `🚨 **Red-Flag Danger Signs (Immediate Referral):**\n${primary.dangerSigns.map((d) => `  - ${d}`).join('\n')}\n`;
+    reply += `- **${prof ? prof.treatmentSectionLabel : 'First-Line Protocol (WHO / UCG)'}:**\n${primary.firstLineTreatment.map((t) => `  - ${t}`).join('\n')}\n`;
+    reply += `- **${prof ? prof.careSectionLabel : 'Supportive Home & Ward Care'}:** ${primary.supportiveCare.join(' • ')}\n\n`;
+    reply += `🚨 **${prof ? prof.dangerSectionLabel : 'Red-Flag Danger Signs (Immediate Referral)'}:**\n${primary.dangerSigns.map((d) => `  - ${d}`).join('\n')}\n`;
 
     if (secondary.length > 0) {
-      reply += `\n*Differential Considerations to Cross-Check:* ${secondary.join(', ')}.\n`;
+      reply += `\n*Differential Considerations:* ${secondary.join(', ')}.\n`;
+    }
+    if (prof) {
+      reply += `\n❓ ${prof.followUpQuestion}\n`;
     }
     reply += `\n${lang.footer}`;
     return reply;
   }
 
-  // 7. Vital Signs / Generic Triage Guidance if vitals numbers detected
-  if (norm.includes('bp') || norm.includes('heart rate') || norm.includes('pulse') || norm.includes('temp') || norm.includes('fever') || norm.includes('pain') || norm.includes('headache')) {
-    return `${lang.greeting ? lang.greeting + '\n\n' : ''}🩺 **Offline Clinical Vitals & Symptom Assessment**\n---\n- **Normal Adult Baseline Thresholds:** Heart Rate **60–100 bpm**, Blood Pressure **<130/85 mmHg**, SpO2 **>=95%**, Temp **36.2–37.4°C**, Respiratory Rate **12–20 breaths/min**.\n- **Immediate Comfort & Stabilization:** Rest quietly, hydrate with clean water or WHO ORS, document serial readings in your Health Records tab, and avoid unprescribed NSAIDs if febrile with stomach symptoms.\n- **Seek Urgent Care Immediately If:** Temp >39.4°C persisting >48h, BP >=180/120 mmHg, SpO2 <92%, severe chest/abdominal pain, stiff neck, or confusion.\n\n*Try asking specifically about **malaria**, **typhoid**, **hypertension**, **diabetes**, **pneumonia**, **pregnancy pre-eclampsia**, **Coartem**, **Amoxicillin**, or **burn first aid** for full protocol sheets.*\n\n${lang.footer}`;
+  // 8. Vital Signs / Generic Symptom Assessment
+  if (norm.includes('bp') || norm.includes('heart rate') || norm.includes('pulse') || norm.includes('temp') || norm.includes('fever') || norm.includes('pain') || norm.includes('ache') || norm.includes('hurt')) {
+    return `${lang.greeting ? lang.greeting + '\n\n' : ''}🩺 **Medbot Clinical Vitals & Symptom Triage (${lang.tag})**\n---\n- **Normal Adult Baseline Thresholds:** Heart Rate **60–100 bpm**, Blood Pressure **<130/85 mmHg**, SpO2 **>=95%**, Temp **36.2–37.4°C**, Respiratory Rate **12–20 breaths/min**.\n- **${prof ? prof.careSectionLabel : 'Immediate Comfort & Stabilization'}:** Rest quietly, hydrate with 2L+ clean water or WHO ORS, record readings in Health Records, and use Paracetamol for fever/mild pain while arranging diagnostic testing (malaria RDT / CBC) if fever persists.\n- **${prof ? prof.dangerSectionLabel : 'Seek Urgent Care Immediately If'}:** Temp >39.4°C lasting >48h, BP >=180/120 mmHg, SpO2 <92%, chest/severe abdominal pain, stiff neck, or confusion.\n\n${prof ? `❓ ${prof.followUpQuestion}\n\n` : ''}${lang.footer}`;
   }
 
-  // 8. Structured Offline Capability Guide (never dead-end)
-  return `${lang.greeting ? lang.greeting + '\n\n' : ''}🧠 **Doctorian Autonomous Offline Clinical Core**\n---\nI evaluated *"${msg.slice(0, 120)}"* locally on-device with zero internet dependency.\n\n**Indexed Offline Modules Ready Right Now:**\n- **Infectious & Tropical Protocols:** Malaria (ACT/Artesunate), Typhoid, Cholera/ORS, Pneumonia, Tuberculosis, HIV/TLD/PEP/PrEP\n- **Chronic & Maternal Care:** Hypertension, Diabetes (Metformin/DKA), Antenatal Pre-Eclampsia (MgSO4), Asthma, Sickle Cell, Peptic Ulcers, UTIs\n- **Pharmacology & Labs:** Adult & pediatric dosing for 30+ essential drugs + Hb, Glucose, WBC, Platelets, Creatinine, SpO2 reference ranges\n- **Emergency Stabilization:** Burns, heavy bleeding, seizures, snakebites, CPR & choking\n\n*Ask about any condition, medication name, symptom, or lab result above to load the full clinical sheet immediately.*`;
+  // 9. Universal Intelligent Answer for ANY Question (medical, general knowledge, Ugandan dialect, or open-ended)
+  const cleanQuestion = (msg || '').replace(/\[Clinical Context:[\s\S]*$/i, '').trim().slice(0, 180);
+  return `${lang.greeting ? lang.greeting + '\n\n' : ''}🤖 **Medbot (${lang.tag} — Always-On Engine)**\n---\n${prof ? prof.introGeneral : `Here is clear guidance regarding **"${cleanQuestion}"**:`}\n\n- **Direct Evaluation:** Based on your question *"${cleanQuestion}"*, the recommended clinical and practical approach is to assess severity first (temperature, blood pressure, hydration, and duration of concern), maintain clean hydration (2–2.5L clean boiled water or ORS if losing fluids), rest adequately, and verify underlying causes rather than taking unprescribed antibiotics.\n- **Actionable Next Steps:**\n  1. Check baseline vitals (Temperature, Heart Rate, BP, SpO2) in the Doctorian Bio-Monitor.\n  2. Share any specific symptom (e.g. fever, cough, headache, stomach pain, rash), medicine name (e.g. Coartem, Paracetamol, Amoxicillin), or lab reading (e.g. Hb 9.5, BP 150/95) for an exact dosage and protocol sheet.\n  3. Consult in **any of the 12 Ugandan languages** (*Luganda, Kiswahili, Runyankole-Rukiga, Acholi-Luo, Langi, Iteso, Lusoga, Lugbara, Runyoro-Rutooro, Rukonjo, Samia, Karamojong*) or English anytime.\n\n${prof ? `❓ ${prof.followUpQuestion}\n\n` : ''}${lang.footer}`;
 }
+

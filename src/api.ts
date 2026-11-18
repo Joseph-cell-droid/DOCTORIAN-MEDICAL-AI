@@ -2589,8 +2589,10 @@ export const api = {
         }
 
         // Seamless fallback to embedded clinical intelligence matrix
-        const text = generateOfflineMedicalResponse(userPrompt);
-        return { text, creditsRemaining: "Offline Clinical Neural Core" };
+        const inferredLang =
+          (typeof localStorage !== 'undefined' ? localStorage.getItem('app_lang') || undefined : undefined);
+        const text = generateOfflineMedicalResponse(userPrompt, inferredLang);
+        return { text, creditsRemaining: "Medbot Always-On Neural Core" };
       }
 
       // 2. ONLINE PRIMARY PATHWAY: Google Gemini via backend cloud synapse
@@ -2747,8 +2749,10 @@ export const api = {
         
           console.warn("[Neural Link] Local LLM failover missed.");
         const lastPrompt = payloadMessages[payloadMessages.length - 1]?.text || "Hello";
-        const text = generateOfflineMedicalResponse(lastPrompt);
-        return { text, creditsRemaining: "Offline Local Back-up Mode" };
+        const inferredLang =
+          (typeof localStorage !== 'undefined' ? localStorage.getItem('app_lang') || undefined : undefined);
+        const text = generateOfflineMedicalResponse(lastPrompt, inferredLang);
+        return { text, creditsRemaining: "Medbot Always-On Neural Core" };
       }
     },
     async voiceChat(text: string, voiceName: string = 'Joseph', language?: string) {
@@ -4647,6 +4651,11 @@ export interface SmsDispatchRecord {
   gatewayProvider: string;
   providerMessageId: string;
   status: string;
+  segments?: number;
+  costUgx?: number;
+  priceUgx?: number;
+  marginUgx?: number;
+  remainingSmsCredits?: number | null;
   createdAt: string;
 }
 

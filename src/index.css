@@ -4,6 +4,10 @@
 
 @layer base {
   html, body {
+    width: 100%;
+    max-width: 100%;
+    min-height: 100dvh;
+    overflow-x: clip;
     overscroll-behavior-y: contain;
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
@@ -11,9 +15,18 @@
     text-rendering: optimizeLegibility;
   }
 
+  #root {
+    width: 100%;
+    max-width: 100%;
+    min-height: 100dvh;
+    overflow-x: clip;
+  }
+
   body {
     font-family: 'DM Sans', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -334,12 +347,65 @@
   animation: doctorian-alarm-ring 0.9s ease-in-out 2;
 }
 
+/* Spinning Top Bar Logo & Crisp Masked 2px Border Light Sweep */
+@keyframes doctorian-logo-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.doctorian-logo-spin {
+  animation: doctorian-logo-spin 9s linear infinite;
+  will-change: transform;
+}
+
+@keyframes doctorian-border-beam-spin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { transform: translate(-50%, -50%) rotate(360deg); opacity: 0; }
+}
+
+.doctorian-topbar-border-mask {
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 20;
+}
+
+.doctorian-topbar-border-beam {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 240%;
+  aspect-ratio: 1 / 1;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg 225deg,
+    #06b6d4 252deg,
+    #3b82f6 285deg,
+    #8b5cf6 318deg,
+    #10b981 344deg,
+    transparent 360deg
+  );
+  animation: doctorian-border-beam-spin 2.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .doctorian-greeting-wave,
   .doctorian-greeting-prism,
   .doctorian-greeting-prism-sub,
   .doctorian-crystal-bubble,
-  .doctorian-alarm-ring {
+  .doctorian-alarm-ring,
+  .doctorian-logo-spin,
+  .doctorian-topbar-border-beam {
     animation: none !important;
   }
 }

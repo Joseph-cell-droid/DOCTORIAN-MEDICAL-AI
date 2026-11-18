@@ -1,4 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
+import {
+  APP_INSTALL_PACKAGES,
+  PACKAGE_BY_ID,
+  detectRecommendedPackageId,
+  getInstalledPackageSummary,
+  persistInstalledPackageState,
+  type AppInstallPackageSpec
+} from '../utils/offlinePackageBuilder';
 
 export type DevicePlatformFamily = 'windows' | 'android' | 'tablet' | 'ios' | 'desktop';
 
@@ -10,7 +18,9 @@ export interface AppDownloadState {
   isInIframe: boolean;
   platformFamily: DevicePlatformFamily;
   platformLabel: string;
-  markInstalled: () => void;
+  recommendedPackage: AppInstallPackageSpec;
+  installedPackage: AppInstallPackageSpec;
+  markInstalled: (pkg?: AppInstallPackageSpec) => void;
   markSeenOnce: (hideImmediately?: boolean) => void;
   triggerInstall: () => Promise<'accepted' | 'dismissed' | 'manual_guide'>;
 }
@@ -21,10 +31,8 @@ const INSTALL_SEEN_ONCE_KEY = 'doctorian_install_icon_seen_once_v1';
 function detectInstalledShell(): boolean {
   if (typeof window === 'undefined') return false;
   try {
-    // Native Electron, Tauri, or Capacitor wrapper
     if ((window as any).electronAPI || (window as any).__TAURI__) return true;
     if ((window as any).Capacitor?.isNativePlatform?.()) return true;
-    // Standalone installed app launch contexts
     if (window.matchMedia?.('(display-mode: standalone)')?.matches) return true;
     if (window.matchMedia?.('(display-mode: minimal-ui)')?.matches) return true;
     if (window.matchMedia?.('(display-mode: window-controls-overlay)')?.matches) return true;
@@ -67,6 +75,11 @@ export function usePWAInstall(): AppDownloadState {
       detectInstalledShell()
     );
   });
+  const [installedPackage, setInstalledPackage] = useState<AppInstallPackageSpec>(
+    () => getInstalledPackageSummary().pkg
+  );
+
+  const recommendedPackage = PACKAGE_BY_ID[detectRecommendedPackageId()] || APP_INSTALL_PACKAGES[0];
 
   const isIOS =
     typeof navigator !== 'undefined' &&
@@ -75,32 +88,18 @@ export function usePWAInstall(): AppDownloadState {
 
   const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
   const platformFamily = detectPlatformFamily();
-
-  const platformLabel = (() => {
-    switch (platformFamily) {
-      case 'windows':
-        return 'Windows App (.EXE)';
-      case 'android':
-        return 'Android App (.APK)';
-      case 'tablet':
-        return 'Tablet HD Suite';
-      case 'ios':
-        return 'iPad / Mobile Suite';
-      default:
-        return 'Windows & Android';
-    }
-  })();
+  const platformLabel = `${recommendedPackage.shortLabel} · ${recommendedPackage.sizeLabel}`;
 
   useEffect(() => {
     let mounted = true;
 
     const evaluateInstallStatus = async () => {
       if (detectInstalledShell()) {
-        localStorage.setItem(INSTALLED_STORAGE_KEY, 'true');
-        localStorage.setItem(INSTALL_SEEN_ONCE_KEY, 'true');
+        persistInstalledPackageState(recommendedPackage);
         if (mounted) {
           setIsInstalled(true);
           setHasSeenOnce(true);
+          setInstalledPackage(getInstalledPackageSummary().pkg);
         }
         return;
       }
@@ -110,13 +109,12 @@ export function usePWAInstall(): AppDownloadState {
         if (typeof getRelated === 'function') {
           const apps = await getRelated.call(navigator);
           if (Array.isArray(apps) && apps.length > 0) {
-            localStorage.setItem(INSTALLED_STORAGE_KEY, 'true');
-            localStorage.setItem(INSTALL_SEEN_ONCE_KEY, 'true');
+            persistInstalledPackageState(recommendedPackage);
             if (mounted) {
               setIsInstalled(true);
               setHasSeenOnce(true);
+              setInstalledPackage(getInstalledPackageSummary().pkg);
             }
-            return;
           }
         }
       } catch {
@@ -135,25 +133,35 @@ export function usePWAInstall(): AppDownloadState {
     };
 
     const onAppInstalled = () => {
-      localStorage.setItem(INSTALLED_STORAGE_KEY, 'true');
-      localStorage.setItem(INSTALL_SEEN_ONCE_KEY, 'true');
+      persistInstalledPackageState(recommendedPackage);
       (window as any).deferredPWAInstallPrompt = null;
       if (mounted) {
         setIsInstalled(true);
         setHasSeenOnce(true);
         setDeferredPrompt(null);
+        setInstalledPackage(getInstalledPackageSummary().pkg);
+      }
+    };
+
+    const onInstallMetaUpdated = () => {
+      if (mounted) {
+        const summary = getInstalledPackageSummary();
+        setIsInstalled(summary.isInstalled);
+        setInstalledPackage(summary.pkg);
       }
     };
 
     window.addEventListener('beforeinstallprompt', onBeforeInstall);
     window.addEventListener('appinstalled', onAppInstalled);
+    window.addEventListener('doctorian-install-updated', onInstallMetaUpdated);
 
     return () => {
       mounted = false;
       window.removeEventListener('beforeinstallprompt', onBeforeInstall);
       window.removeEventListener('appinstalled', onAppInstalled);
+      window.removeEventListener('doctorian-install-updated', onInstallMetaUpdated);
     };
-  }, []);
+  }, [recommendedPackage]);
 
   const markSeenOnce = useCallback((hideImmediately = false) => {
     try {
@@ -164,14 +172,13 @@ export function usePWAInstall(): AppDownloadState {
     }
   }, []);
 
-  const markInstalled = useCallback(() => {
-    try {
-      localStorage.setItem(INSTALLED_STORAGE_KEY, 'true');
-      localStorage.setItem(INSTALL_SEEN_ONCE_KEY, 'true');
-    } catch {}
+  const markInstalled = useCallback((pkg?: AppInstallPackageSpec) => {
+    const targetPkg = pkg || recommendedPackage;
+    persistInstalledPackageState(targetPkg);
+    setInstalledPackage(targetPkg);
     setIsInstalled(true);
     setHasSeenOnce(true);
-  }, []);
+  }, [recommendedPackage]);
 
   const triggerInstall = useCallback(async (): Promise<'accepted' | 'dismissed' | 'manual_guide'> => {
     const promptObj = deferredPrompt || (typeof window !== 'undefined' ? (window as any).deferredPWAInstallPrompt : null);
@@ -180,7 +187,7 @@ export function usePWAInstall(): AppDownloadState {
         await promptObj.prompt();
         const choice = await promptObj.userChoice;
         if (choice?.outcome === 'accepted') {
-          markInstalled();
+          markInstalled(recommendedPackage);
           setDeferredPrompt(null);
           (window as any).deferredPWAInstallPrompt = null;
           return 'accepted';
@@ -192,7 +199,7 @@ export function usePWAInstall(): AppDownloadState {
       }
     }
     return 'manual_guide';
-  }, [deferredPrompt, isInIframe, markInstalled, markSeenOnce]);
+  }, [deferredPrompt, isInIframe, markInstalled, markSeenOnce, recommendedPackage]);
 
   return {
     isInstalled,
@@ -202,6 +209,8 @@ export function usePWAInstall(): AppDownloadState {
     isInIframe,
     platformFamily,
     platformLabel,
+    recommendedPackage,
+    installedPackage,
     markInstalled,
     markSeenOnce,
     triggerInstall

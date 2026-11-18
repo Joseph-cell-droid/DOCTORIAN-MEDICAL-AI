@@ -28,11 +28,16 @@ import {
   FileText,
   PhoneCall,
   CheckCircle2,
-  Loader2
+  Loader2,
+  Play,
+  Pause,
+  HeartPulse,
+  Sparkles
 } from 'lucide-react';
 import { api, type TelephonyContact, type SmsDispatchRecord } from '../api';
 import { UGANDAN_CLINICIAN_PERSONAS, ClinicianPersona } from '../utils/ugandanMedicalLexicon';
 import { speechEngine } from '../utils/speechEngine';
+import { SUPPORTED_LANGUAGES, getAppLanguage, normalizeLanguageCode } from '../utils/translations';
 import {
   createCallRoomId,
   generateClinicalCallReply,
@@ -58,8 +63,14 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
   onSwitchToVoice
 }) => {
   const [selectedClinician, setSelectedClinician] = useState<ClinicianPersona>(UGANDAN_CLINICIAN_PERSONAS[0]);
-  const [language, setLanguage] = useState<'English' | 'Luganda' | 'Swahili' | 'Runyankole' | 'Acholi'>('English');
+  const [language, setLanguage] = useState<string>(() => normalizeLanguageCode(getAppLanguage()));
   const [videoQuality, setVideoQuality] = useState<'1080p HD' | '360p Saver'>('1080p HD');
+
+  // Interactive clinical video feed state
+  const [videoChannel, setVideoChannel] = useState<'consultation' | 'cardiac_echo' | 'care_guide'>('consultation');
+  const [isVideoPlaying, setIsVideoPlaying] = useState<boolean>(true);
+  const [careGuideStep, setCareGuideStep] = useState<number>(0);
+  const [supportsVideoStream, setSupportsVideoStream] = useState<boolean>(true);
 
   // Media hardware state
   const [isMicOn, setIsMicOn] = useState(false);
@@ -94,7 +105,7 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
   // Patient context & live transcript
   const [patientCtx] = useState(() => getLocalPatientContext());
   const [transcript, setTranscript] = useState<CallTranscriptEntry[]>(() => {
-    const g = getGreetingForLanguage(UGANDAN_CLINICIAN_PERSONAS[0], 'English');
+    const g = getGreetingForLanguage(UGANDAN_CLINICIAN_PERSONAS[0], normalizeLanguageCode(getAppLanguage()));
     return [
       {
         id: 'init-1',
@@ -106,8 +117,12 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
       }
     ];
   });
-  const [liveCaption, setLiveCaption] = useState<string>(() => getGreetingForLanguage(UGANDAN_CLINICIAN_PERSONAS[0], 'English').primary);
-  const [liveCaptionTranslated, setLiveCaptionTranslated] = useState<string | undefined>(() => getGreetingForLanguage(UGANDAN_CLINICIAN_PERSONAS[0], 'English').translation);
+  const [liveCaption, setLiveCaption] = useState<string>(
+    () => getGreetingForLanguage(UGANDAN_CLINICIAN_PERSONAS[0], normalizeLanguageCode(getAppLanguage())).primary
+  );
+  const [liveCaptionTranslated, setLiveCaptionTranslated] = useState<string | undefined>(
+    () => getGreetingForLanguage(UGANDAN_CLINICIAN_PERSONAS[0], normalizeLanguageCode(getAppLanguage())).translation
+  );
   const [messageInput, setMessageInput] = useState('');
   const [savedHistory, setSavedHistory] = useState<PersistedCallRecord[]>(() => getCallHistoryRecords());
   const [rxSentNotice, setRxSentNotice] = useState<string | null>(null);
@@ -129,6 +144,10 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const syntheticCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const syntheticVideoRef = useRef<HTMLVideoElement | null>(null);
+  const syntheticStreamRef = useRef<MediaStream | null>(null);
+  const clinicianImgRef = useRef<HTMLImageElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const webrtcRef = useRef<TelehealthWebRTCSession | null>(null);
@@ -425,6 +444,353 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
     transcriptBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [transcript]);
 
+  // Preload clinician portrait for live animated clinical video canvas
+  useEffect(() => {
+    if (!isOpen) return;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = selectedClinician.avatar;
+    img.onload = () => {
+      clinicianImgRef.current = img;
+    };
+    img.onerror = () => {
+      clinicianImgRef.current = null;
+    };
+  }, [isOpen, selectedClinician.avatar]);
+
+  // Auto-advance interactive care video guide steps smoothly while playing
+  useEffect(() => {
+    if (!isOpen || !isVideoPlaying || videoChannel !== 'care_guide') return;
+    const id = window.setInterval(() => {
+      setCareGuideStep((s) => (s + 1) % 4);
+    }, 5500);
+    return () => window.clearInterval(id);
+  }, [isOpen, isVideoPlaying, videoChannel]);
+
+  // Live Interactive Clinical Video Engine (streams 960x540 animated video onto <video> via captureStream)
+  useEffect(() => {
+    if (!isOpen) {
+      if (syntheticStreamRef.current) {
+        syntheticStreamRef.current.getTracks().forEach((tr) => tr.stop());
+        syntheticStreamRef.current = null;
+      }
+      return;
+    }
+
+    const canvas = syntheticCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const captureFn = (canvas as HTMLCanvasElement & { captureStream?: (fps?: number) => MediaStream }).captureStream;
+    if (typeof captureFn === 'function') {
+      try {
+        const stream = captureFn.call(canvas, 24);
+        syntheticStreamRef.current = stream;
+        setSupportsVideoStream(true);
+        if (syntheticVideoRef.current) {
+          syntheticVideoRef.current.srcObject = stream;
+          void syntheticVideoRef.current.play().catch(() => {
+            // muted autoplay fallback handled gracefully
+          });
+        }
+      } catch {
+        setSupportsVideoStream(false);
+      }
+    } else {
+      setSupportsVideoStream(false);
+    }
+
+    let rafId = 0;
+    let phase = 0;
+    let lastDraw = 0;
+
+    const careSteps = [
+      {
+        title: '1. Fever & Malaria Protocol',
+        sub: 'mRDT Screening · 2.5L Oral Hydration · Coartem Course',
+        badge: 'FEVER / MALARIA VIDEO GUIDE',
+        accent: '#f59e0b'
+      },
+      {
+        title: '2. Respiratory & Airway Support',
+        sub: 'Upright Posture · Paced 4s Breath Cycle · SpO2 Monitoring',
+        badge: 'AIRWAY & BREATHING VIDEO',
+        accent: '#38bdf8'
+      },
+      {
+        title: '3. BP & Pulse Sensor Calibration',
+        sub: 'Heart-Level Cuff · Rest 5 Min · Optical / BLE Telemetry',
+        badge: 'CARDIOVASCULAR CHECK VIDEO',
+        accent: '#10b981'
+      },
+      {
+        title: '4. Red-Flag Recovery & 999 Alert',
+        sub: 'Lateral Recovery Position · Emergency Dispatch Ready',
+        badge: 'EMERGENCY TRIAGE VIDEO',
+        accent: '#f43f5e'
+      }
+    ];
+
+    const renderFrame = (now: number) => {
+      rafId = requestAnimationFrame(renderFrame);
+      if (now - lastDraw < 38) return; // ~26 fps smooth CPU-light stream
+      lastDraw = now;
+      if (isVideoPlaying) phase += 0.055;
+
+      const W = canvas.width;
+      const H = canvas.height;
+      const hr = Math.max(48, Math.min(165, patientCtx.vitals.hr || 76));
+      const beatFreq = hr / 60;
+
+      // Ambient dark clinical studio gradient backdrop
+      const bgGrad = ctx.createRadialGradient(W * 0.5, H * 0.38, 40, W * 0.5, H * 0.5, W * 0.72);
+      bgGrad.addColorStop(0, videoChannel === 'cardiac_echo' ? '#082032' : videoChannel === 'care_guide' ? '#0c1f3d' : '#0b1830');
+      bgGrad.addColorStop(1, '#040812');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Subtle diagnostic background grid
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.06)';
+      ctx.lineWidth = 1;
+      for (let gx = 0; gx < W; gx += 48) {
+        ctx.beginPath();
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx, H);
+        ctx.stroke();
+      }
+      for (let gy = 0; gy < H; gy += 48) {
+        ctx.beginPath();
+        ctx.moveTo(0, gy);
+        ctx.lineTo(W, gy);
+        ctx.stroke();
+      }
+
+      if (videoChannel === 'consultation') {
+        // Channel 1: Live Animated Clinician Consultation Stream
+        const cx = W * 0.5;
+        const cy = H * 0.43;
+        const img = clinicianImgRef.current;
+
+        // Animated voice/pulse aura rings around clinician
+        const speakBoost = isClinicianSpeaking ? 1 : isMicOn ? 0.55 : 0.2;
+        for (let r = 0; r < 3; r++) {
+          const radius = 128 + r * 24 + Math.sin(phase * 2.2 - r) * (8 + speakBoost * 16);
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+          ctx.strokeStyle = isClinicianSpeaking
+            ? `rgba(16, 185, 129, ${0.35 - r * 0.1})`
+            : `rgba(56, 189, 248, ${0.22 - r * 0.06})`;
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+        }
+
+        // Circular clinician video feed portrait with gentle breathing camera motion
+        const avatarR = 112;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, avatarR, 0, Math.PI * 2);
+        ctx.clip();
+
+        if (img && img.complete && img.naturalWidth > 0) {
+          const scale = 1.04 + Math.sin(phase * 0.8) * 0.018;
+          const aspect = img.naturalWidth / img.naturalHeight;
+          const drawH = avatarR * 2.15 * scale;
+          const drawW = drawH * aspect;
+          ctx.drawImage(img, cx - drawW / 2, cy - avatarR * 1.05, drawW, drawH);
+        } else {
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(cx - avatarR, cy - avatarR, avatarR * 2, avatarR * 2);
+          ctx.fillStyle = '#38bdf8';
+          ctx.font = 'bold 56px Inter, system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(
+            selectedClinician.name
+              .replace(/^Dr\.\s*/i, '')
+              .split(' ')
+              .map((w) => w[0])
+              .join('')
+              .slice(0, 2),
+            cx,
+            cy
+          );
+        }
+        ctx.restore();
+
+        // Subtle crisp portrait ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, avatarR + 2, 0, Math.PI * 2);
+        ctx.strokeStyle = isClinicianSpeaking ? '#34d399' : '#38bdf8';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Real-time clinician voice equalizer bars below portrait
+        const barCount = 16;
+        const startX = cx - (barCount * 10) / 2;
+        for (let b = 0; b < barCount; b++) {
+          const amp = isClinicianSpeaking
+            ? 10 + Math.abs(Math.sin(phase * 3.5 + b * 0.7)) * 28
+            : 4 + Math.abs(Math.sin(phase * 1.4 + b * 0.5)) * 7;
+          ctx.fillStyle = isClinicianSpeaking ? '#34d399' : '#38bdf8';
+          ctx.fillRect(startX + b * 10, cy + avatarR + 22 - amp / 2, 5, amp);
+        }
+
+        // Top clinician credential watermark
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '700 18px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${selectedClinician.name} · ${selectedClinician.specialty}`, cx, H * 0.8);
+      } else if (videoChannel === 'cardiac_echo') {
+        // Channel 2: Live Animated Echocardiogram Sector + Doppler Flow
+        const apexX = W * 0.5;
+        const apexY = 92;
+        const coneR = 325;
+        const systolic = Math.pow(Math.max(0, Math.sin(phase * beatFreq * 2.2)), 2);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(apexX, apexY);
+        ctx.arc(apexX, apexY, coneR, Math.PI * 0.28, Math.PI * 0.72);
+        ctx.closePath();
+        ctx.fillStyle = '#020b16';
+        ctx.fill();
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.clip();
+
+        // Ultrasound scanlines
+        for (let s = 1; s < 10; s++) {
+          ctx.beginPath();
+          ctx.arc(apexX, apexY, (coneR / 10) * s, Math.PI * 0.28, Math.PI * 0.72);
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.14)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+
+        // Animated 4-chamber myocardium contracting with patient HR
+        const wallContract = systolic * 18;
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.ellipse(apexX - 34, apexY + 185, 36 - wallContract * 0.6, 68 - wallContract * 0.5, -0.18, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(apexX + 34, apexY + 185, 34 - wallContract * 0.5, 64 - wallContract * 0.4, 0.18, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Color Doppler mitral inflow jet
+        const dopplerGrad = ctx.createRadialGradient(apexX, apexY + 205, 6, apexX, apexY + 205, 58);
+        dopplerGrad.addColorStop(0, systolic > 0.3 ? 'rgba(244, 63, 94, 0.75)' : 'rgba(56, 189, 248, 0.65)');
+        dopplerGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+        ctx.fillStyle = dopplerGrad;
+        ctx.beginPath();
+        ctx.arc(apexX, apexY + 205, 58, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = '700 15px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`TRANSTHORACIC 4-CH ECHO · EF ~62% · ${hr} BPM`, W * 0.5, H - 102);
+      } else {
+        // Channel 3: Interactive Animated Care & Triage Video Walkthrough
+        const activeStep = careSteps[careGuideStep % careSteps.length];
+        const cx = W * 0.5;
+        const cy = H * 0.42;
+
+        // Animated visual demonstration graphic per step
+        const pulseScale = 1 + Math.sin(phase * 1.4) * 0.18;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 88 * pulseScale, 0, Math.PI * 2);
+        ctx.fillStyle = `${activeStep.accent}22`;
+        ctx.fill();
+        ctx.strokeStyle = activeStep.accent;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, 52 + Math.cos(phase * 1.4) * 10, 0, Math.PI * 2);
+        ctx.fillStyle = `${activeStep.accent}44`;
+        ctx.fill();
+
+        // Step badge + title + clinical instruction
+        ctx.fillStyle = activeStep.accent;
+        ctx.font = '800 13px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(activeStep.badge, cx, cy - 132);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '800 28px Inter, system-ui, sans-serif';
+        ctx.fillText(activeStep.title, cx, cy + 148);
+
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = '600 16px Inter, system-ui, sans-serif';
+        ctx.fillText(activeStep.sub, cx, cy + 180);
+
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '700 18px monospace';
+        ctx.fillText(
+          careGuideStep === 1 ? (Math.sin(phase * 1.4) > 0 ? 'INHALE' : 'EXHALE') : `STEP ${careGuideStep + 1} / 4`,
+          cx,
+          cy + 6
+        );
+      }
+
+      // Live Clinical ECG Trace Strip across lower video frame
+      const ecgBaseY = H - 56;
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.72)';
+      ctx.fillRect(0, H - 84, W, 84);
+      ctx.beginPath();
+      for (let x = 24; x < W - 24; x += 4) {
+        const norm = ((x * 0.025 + phase * beatFreq * 1.6) % (Math.PI * 2)) / (Math.PI * 2);
+        let qrs = 0;
+        if (norm > 0.18 && norm < 0.24) qrs = -4;
+        else if (norm >= 0.24 && norm < 0.28) qrs = 6;
+        else if (norm >= 0.28 && norm < 0.33) qrs = -26;
+        else if (norm >= 0.33 && norm < 0.38) qrs = 10;
+        else if (norm >= 0.46 && norm < 0.56) qrs = -6;
+        const y = ecgBaseY + qrs;
+        if (x === 24) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = '#34d399';
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+
+      // Live HUD Status Timestamp inside the video stream
+      ctx.fillStyle = isVideoPlaying ? '#ef4444' : '#94a3b8';
+      ctx.beginPath();
+      ctx.arc(36, 34, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = '700 13px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(
+        `${isVideoPlaying ? 'PLAYING' : 'PAUSED'} · ${videoQuality} · ${language.toUpperCase()}`,
+        50,
+        39
+      );
+    };
+
+    rafId = requestAnimationFrame(renderFrame);
+    return () => {
+      cancelAnimationFrame(rafId);
+    };
+  }, [
+    isOpen,
+    isVideoPlaying,
+    videoChannel,
+    careGuideStep,
+    selectedClinician.name,
+    isClinicianSpeaking,
+    isMicOn,
+    patientCtx.vitals.hr,
+    videoQuality,
+    language
+  ]);
+
   const handleSelectClinician = (doc: ClinicianPersona) => {
     setSelectedClinician(doc);
     const g = getGreetingForLanguage(doc, language);
@@ -563,24 +929,30 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
             </div>
           </div>
 
-          <div className="hidden md:flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <select
               value={language}
-              onChange={(e) => setLanguage(e.target.value as any)}
+              onChange={(e) => {
+                const nextLang = e.target.value;
+                setLanguage(nextLang);
+                const g = getGreetingForLanguage(selectedClinician, nextLang);
+                setLiveCaption(g.primary);
+                setLiveCaptionTranslated(g.translation);
+              }}
               aria-label="Select consultation language"
-              className="bg-slate-900 border border-slate-700 text-slate-200 text-xs font-medium rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="bg-slate-900 border border-slate-700 text-slate-200 text-xs font-medium rounded-xl px-2.5 sm:px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[140px] sm:max-w-none"
             >
-              <option value="English">English</option>
-              <option value="Luganda">Luganda</option>
-              <option value="Swahili">Kiswahili</option>
-              <option value="Runyankole">Runyankole</option>
-              <option value="Acholi">Acholi</option>
+              {SUPPORTED_LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.nativeLabel}
+                </option>
+              ))}
             </select>
 
             <button
               type="button"
               onClick={() => setVideoQuality((q) => (q === '1080p HD' ? '360p Saver' : '1080p HD'))}
-              className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-500 text-xs font-mono font-semibold text-slate-200 whitespace-nowrap shrink-0 cursor-pointer"
+              className="hidden md:inline-flex px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-500 text-xs font-mono font-semibold text-slate-200 whitespace-nowrap shrink-0 cursor-pointer"
               title="Switch video resolution for network bandwidth"
             >
               {videoQuality}
@@ -590,7 +962,7 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
               <button
                 type="button"
                 onClick={onSwitchToVoice}
-                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                className="hidden md:flex px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <Phone className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Switch to Voice</span>
@@ -624,6 +996,18 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
           <div className="lg:col-span-8 flex flex-col min-h-[280px] sm:min-h-[380px] relative rounded-2xl bg-[#050A14] border border-slate-800 overflow-hidden">
             {/* Primary Frame */}
             <div className="relative flex-1 w-full h-full overflow-hidden flex items-center justify-center">
+              {/* Offscreen live renderer driving interactive <video> stream */}
+              <canvas
+                ref={syntheticCanvasRef}
+                width={960}
+                height={540}
+                className={
+                  !hasRemoteStream && !isPiPSwapped && !supportsVideoStream
+                    ? 'w-full h-full object-cover'
+                    : 'sr-only pointer-events-none'
+                }
+              />
+
               {hasRemoteStream && !isPiPSwapped ? (
                 <video
                   ref={remoteVideoRef}
@@ -649,11 +1033,14 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
                   </div>
                 )
               ) : (
-                <img
-                  src={selectedClinician.avatar}
-                  alt={selectedClinician.name}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover object-top"
+                <video
+                  ref={syntheticVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  loop
+                  poster={selectedClinician.avatar}
+                  className={`w-full h-full object-cover ${supportsVideoStream ? 'block' : 'hidden'}`}
                 />
               )}
 
@@ -759,6 +1146,81 @@ export const DoctorianVideoConsultationModal: React.FC<DoctorianVideoConsultatio
                 </div>
               </button>
             </div>
+
+            {/* Interactive Clinical Video Feed Controls (Play/Pause + Relevant Video Channels) */}
+            {!hasRemoteStream && !isPiPSwapped && (
+              <div className="px-3 py-2 bg-[#08101E] border-t border-slate-800/90 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setIsVideoPlaying((p) => !p)}
+                    className="min-h-[34px] px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                    aria-label={isVideoPlaying ? 'Pause clinical video' : 'Play clinical video'}
+                  >
+                    {isVideoPlaying ? <Pause className="w-3.5 h-3.5 text-amber-400" /> : <Play className="w-3.5 h-3.5 text-emerald-400" />}
+                    <span>{isVideoPlaying ? 'Pause' : 'Play'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setVideoChannel('consultation')}
+                    className={`min-h-[34px] px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                      videoChannel === 'consultation'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                    }`}
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>Clinic Feed</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setVideoChannel('cardiac_echo')}
+                    className={`min-h-[34px] px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                      videoChannel === 'cardiac_echo'
+                        ? 'bg-cyan-600 text-white'
+                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                    }`}
+                  >
+                    <HeartPulse className="w-3.5 h-3.5" />
+                    <span>Cardiac Echo</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setVideoChannel('care_guide')}
+                    className={`min-h-[34px] px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                      videoChannel === 'care_guide'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Care Guide Video</span>
+                  </button>
+                </div>
+
+                {videoChannel === 'care_guide' && (
+                  <div className="flex items-center gap-1">
+                    {[0, 1, 2, 3].map((stepIdx) => (
+                      <button
+                        key={stepIdx}
+                        type="button"
+                        onClick={() => setCareGuideStep(stepIdx)}
+                        className={`min-h-[30px] px-2 rounded-md text-[11px] font-mono font-bold cursor-pointer ${
+                          careGuideStep === stepIdx
+                            ? 'bg-emerald-500 text-slate-950'
+                            : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                        }`}
+                      >
+                        {stepIdx + 1}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* RIGHT 4 COLS: Smart Clinical Consultation Panel */}

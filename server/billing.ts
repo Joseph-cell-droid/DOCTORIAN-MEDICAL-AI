@@ -706,8 +706,8 @@ export function setupBillingRoutes(
       return res.status(401).json({ error: 'Registered account authentication required for billing checkout.' });
     }
     const { kind = 'protocol', itemId, paymentMethod = 'momo', payerPhone, externalRef, idempotencyKey } = req.body || {};
-    if (!itemId || !['protocol', 'storage'].includes(kind)) {
-      return res.status(400).json({ error: 'Valid checkout kind (protocol | storage) and itemId are required.' });
+    if (!itemId || !['protocol', 'storage', 'sms_bundle'].includes(kind)) {
+      return res.status(400).json({ error: 'Valid checkout kind (protocol | storage | sms_bundle) and itemId are required.' });
     }
 
     try {

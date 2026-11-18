@@ -2,20 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
-  Shield,
-  Zap,
-  WifiOff,
-  Check,
   Download,
   Smartphone,
   Monitor,
   Tablet,
-  HardDrive,
-  Database,
+  Laptop,
+  Package,
   CheckCircle2,
   RefreshCw,
-  ExternalLink
+  Wifi,
+  WifiOff,
+  HardDrive,
+  ShieldCheck
 } from 'lucide-react';
+import {
+  APP_INSTALL_PACKAGES,
+  type AppInstallPackageId,
+  type AppInstallPackageSpec,
+  detectRecommendedPackageId,
+  downloadDevicePackage,
+  getInstalledPackageSummary,
+  syncCompleteOfflineApp
+} from '../utils/offlinePackageBuilder';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface DownloadAppModalProps {
   isOpen: boolean;
@@ -23,505 +32,381 @@ interface DownloadAppModalProps {
   onInstalled?: () => void;
 }
 
-interface OfflinePackageStatus {
-  id: string;
-  name: string;
-  category: string;
-  artifactUrl: string;
-  description: string;
-  cached: boolean;
+type CategoryFilter = 'all' | 'computer' | 'mobile' | 'tablet' | 'portable';
+
+function getPackageIcon(pkg: AppInstallPackageSpec) {
+  if (pkg.id === 'windows' || pkg.id === 'linux') return Monitor;
+  if (pkg.id === 'macos') return Laptop;
+  if (pkg.id === 'tablet_android' || pkg.id === 'windows_tablet') return Tablet;
+  if (pkg.id === 'offline_suite') return Package;
+  return Smartphone;
 }
 
-const WINDOWS_INSTALLER_URL = '/downloads/Doctorian-Windows-Setup.exe';
-const ANDROID_PHONE_APK_URL = '/downloads/Doctorian-MedicalAI-Android.apk';
-const TABLET_HD_APK_URL = '/downloads/Doctorian-Tablet-HD.apk';
-const OFFLINE_SUITE_URL = '/downloads/Doctorian-Offline-Package-Suite.json';
-const ANDROID_PLAY_URL = 'https://play.google.com/store/apps/details?id=com.doctorian.medicalai';
+export const DownloadAppModal: React.FC<DownloadAppModalProps> = ({
+  isOpen,
+  onClose,
+  onInstalled
+}) => {
+  const {
+    canPromptNatively,
+    triggerInstall,
+    markInstalled,
+    isInstalled,
+    installedPackage
+  } = usePWAInstall();
 
-export const DownloadAppModal: React.FC<DownloadAppModalProps> = ({ isOpen, onClose, onInstalled }) => {
-  const [activeTab, setActiveTab] = useState<'devices' | 'packages'>('devices');
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [isCachingAll, setIsCachingAll] = useState(false);
-  const [cacheProgress, setCacheProgress] = useState(0);
-  const [cachedFileCount, setCachedFileCount] = useState<number>(0);
+  const [filter, setFilter] = useState<CategoryFilter>('all');
+  const [activeDownloadId, setActiveDownloadId] = useState<AppInstallPackageId | null>(null);
+  const [progressPercent, setProgressPercent] = useState<number>(0);
+  const [progressStage, setProgressStage] = useState<string>('');
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+  const [offlineSummary, setOfflineSummary] = useState(() => getInstalledPackageSummary());
+  const [isSyncingOffline, setIsSyncingOffline] = useState(false);
 
-  const [packages, setPackages] = useState<OfflinePackageStatus[]>([
-    {
-      id: 'pkg-ucg',
-      name: 'WHO & Uganda Clinical Guidelines + 1,200 ICD-11 Entities',
-      category: 'Clinical Guidelines',
-      artifactUrl: OFFLINE_SUITE_URL,
-      description: 'Complete clinical guidelines, emergency algorithms, and regional hospital referrals cached for offline access.',
-      cached: true
-    },
-    {
-      id: 'pkg-rx',
-      name: 'Essential Medicines Formulary & E-Pharmacy Outbox',
-      category: 'Pharmacology',
-      artifactUrl: '/rx_hero_banner.png',
-      description: 'Drug monographs, pediatric/renal dosing calculators, and offline order dispatch queue.',
-      cached: true
-    },
-    {
-      id: 'pkg-telehealth',
-      name: 'Multilingual Voice & Video Telehealth Pack',
-      category: 'Telehealth Engine',
-      artifactUrl: '/portraits/dr_sarah_nakalema.jpg',
-      description: 'Clinician profiles, offline Luganda/Swahili/Acholi speech engine, and diagnostic triage responder.',
-      cached: true
-    },
-    {
-      id: 'pkg-installers',
-      name: 'Offline Native Installers (Windows .EXE & Android/Tablet .APK)',
-      category: 'App Installers',
-      artifactUrl: WINDOWS_INSTALLER_URL,
-      description: 'Local Service Worker archive of all desktop, smartphone, and tablet installer packages for zero-internet sharing.',
-      cached: true
-    }
-  ]);
+  const recommendedId = detectRecommendedPackageId();
+  const recommendedPkg =
+    APP_INSTALL_PACKAGES.find((p) => p.id === recommendedId) || APP_INSTALL_PACKAGES[0];
 
-  const showStatus = (text: string) => {
-    setStatusMessage(text);
-    window.setTimeout(() => {
-      setStatusMessage((curr) => (curr === text ? null : curr));
-    }, 4500);
-  };
-
-  // Check genuine Cache Storage status on open
   useEffect(() => {
-    if (!isOpen || typeof window === 'undefined' || !('caches' in window)) return;
-    let mounted = true;
-    const inspectCaches = async () => {
-      try {
-        const names = await caches.keys();
-        let count = 0;
-        const cachedUrls = new Set<string>();
-        for (const name of names) {
-          const cache = await caches.open(name);
-          const keys = await cache.keys();
-          count += keys.length;
-          keys.forEach((req) => cachedUrls.add(new URL(req.url).pathname));
-        }
-        if (!mounted) return;
-        setCachedFileCount(count);
-        setPackages((prev) =>
-          prev.map((pkg) => ({
-            ...pkg,
-            cached: cachedUrls.has(pkg.artifactUrl) || count > 0
-          }))
-        );
-      } catch {
-        // ignore restricted cache storage errors
-      }
-    };
-    void inspectCaches();
+    if (!isOpen) return;
+    setOfflineSummary(getInstalledPackageSummary());
+
+    const onOnlineStatus = () => setIsOnline(navigator.onLine);
+    const onInstallUpdated = () => setOfflineSummary(getInstalledPackageSummary());
+    window.addEventListener('online', onOnlineStatus);
+    window.addEventListener('offline', onOnlineStatus);
+    window.addEventListener('doctorian-install-updated', onInstallUpdated);
     return () => {
-      mounted = false;
+      window.removeEventListener('online', onOnlineStatus);
+      window.removeEventListener('offline', onOnlineStatus);
+      window.removeEventListener('doctorian-install-updated', onInstallUpdated);
     };
   }, [isOpen]);
 
-  const triggerDownload = (url: string, filename: string, label: string) => {
-    showStatus(`Downloading ${label} (${filename})...`);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  if (!isOpen) return null;
+
+  const filteredPackages = APP_INSTALL_PACKAGES.filter((pkg) =>
+    filter === 'all' ? true : pkg.category === filter
+  );
+
+  const handleInstallPackage = async (pkg: AppInstallPackageSpec, alsoTryNativePrompt = false) => {
+    if (activeDownloadId || isSyncingOffline) return;
+    setActiveDownloadId(pkg.id);
+    setProgressPercent(4);
+    setProgressStage(`Preparing ${pkg.name} (${pkg.sizeLabel})...`);
 
     try {
-      localStorage.setItem('doctorian_last_downloaded_pkg', filename);
-      localStorage.setItem('doctorian_pwa_installed_flag', 'true');
-      localStorage.setItem('doctorian_install_icon_seen_once_v1', 'true');
-    } catch {}
-    onInstalled?.();
-  };
-
-  // Real Cache Storage synchronization across all app assets, clinical DB, portraits & installers
-  const handleSyncAllOfflinePackages = async () => {
-    setIsCachingAll(true);
-    setCacheProgress(10);
-    showStatus('Synchronizing offline app shell, clinical corpus & installers into device storage...');
-
-    const urlsToCache = [
-      '/',
-      '/index.html',
-      '/manifest.webmanifest',
-      '/logo-192.png',
-      '/logo-512.png',
-      OFFLINE_SUITE_URL,
-      WINDOWS_INSTALLER_URL,
-      ANDROID_PHONE_APK_URL,
-      TABLET_HD_APK_URL,
-      '/portraits/dr_sarah_nakalema.jpg',
-      '/portraits/dr_emmanuel_kato.jpg',
-      '/portraits/dr_achan_grace.jpg',
-      '/portraits/dr_joseph_mukasa.jpg',
-      '/rx_hero_banner.png',
-      '/rx_capsule_3d.png'
-    ];
-
-    try {
-      if ('caches' in window) {
-        const cache = await caches.open('doctorian-shell-v5');
-        let done = 0;
-        for (const url of urlsToCache) {
-          try {
-            const res = await fetch(url, { cache: 'reload' });
-            if (res.ok) {
-              await cache.put(url, res);
-            }
-          } catch {
-            // Keep existing cached copy if currently offline
-          }
-          done += 1;
-          setCacheProgress(Math.round((done / urlsToCache.length) * 100));
-        }
-        const allKeys = await cache.keys();
-        setCachedFileCount(allKeys.length);
+      if (alsoTryNativePrompt && canPromptNatively) {
+        await triggerInstall();
       }
-      localStorage.setItem('doctorian_heavy_suite_synced', 'true');
-      setPackages((prev) => prev.map((p) => ({ ...p, cached: true })));
-      showStatus('All offline clinical data, UI assets, and native installer packages synced for offline use.');
+      const result = await downloadDevicePackage(pkg.id, {
+        onProgress: (pct, stage) => {
+          setProgressPercent(pct);
+          setProgressStage(stage);
+        }
+      });
+      markInstalled(result.pkg);
+      setOfflineSummary(getInstalledPackageSummary());
+      setProgressStage(
+        result.source === 'offline_builder'
+          ? `Offline package installed · ${result.pkg.sizeLabel} saved`
+          : `Installed cleanly · ${result.pkg.sizeLabel}`
+      );
+      onInstalled?.();
     } catch {
-      showStatus('Offline vault already active — cached packages preserved.');
+      setProgressStage('Offline fallback cache ready. Try downloading again.');
     } finally {
-      setIsCachingAll(false);
+      window.setTimeout(() => {
+        setActiveDownloadId(null);
+      }, 900);
     }
   };
 
-  if (!isOpen) return null;
+  const handlePrepareOfflineApp = async () => {
+    if (isSyncingOffline || activeDownloadId) return;
+    setIsSyncingOffline(true);
+    setProgressPercent(5);
+    setProgressStage('Caching app UI, clinical database & offline routes...');
+    try {
+      const res = await syncCompleteOfflineApp((pct, stage) => {
+        setProgressPercent(pct);
+        setProgressStage(stage);
+      });
+      setOfflineSummary(getInstalledPackageSummary());
+      setProgressStage(
+        `Offline mode ready · ${res.cachedCount} modules verified`
+      );
+    } finally {
+      setIsSyncingOffline(false);
+    }
+  };
+
+  const RecommendedIcon = getPackageIcon(recommendedPkg);
+  const displayedInstalledSize = isInstalled
+    ? installedPackage.sizeLabel
+    : recommendedPkg.sizeLabel;
 
   return (
     <AnimatePresence>
       <div
         id="download-modal-backdrop"
-        className="fixed inset-0 z-[200] flex items-center justify-center p-2.5 sm:p-5 bg-slate-950/85 backdrop-blur-md overflow-y-auto"
+        className="fixed inset-0 z-[200] flex items-center justify-center p-2.5 sm:p-5 bg-slate-950/75 backdrop-blur-md overflow-y-auto"
         onClick={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}
       >
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 12 }}
+          initial={{ opacity: 0, scale: 0.97, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 12 }}
-          transition={{ duration: 0.2 }}
-          className="relative w-full max-w-5xl my-auto rounded-3xl bg-[#070E22] border border-slate-800 shadow-2xl overflow-hidden p-5 sm:p-8 text-slate-100 max-h-[92vh] flex flex-col"
+          exit={{ opacity: 0, scale: 0.97, y: 12 }}
+          transition={{ duration: 0.18 }}
+          className="relative w-full max-w-4xl my-auto rounded-3xl bg-white dark:bg-[#071127] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh] text-slate-900 dark:text-slate-100"
         >
-          <button
-            id="close-download-modal-btn"
-            type="button"
-            onClick={onClose}
-            aria-label="Close download modal"
-            className="absolute top-4 right-4 sm:top-6 sm:right-6 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white cursor-pointer z-20"
-          >
-            <X className="w-4 h-4" />
-          </button>
-
-          {/* HEADER */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5 mb-5 pr-10">
-            <div className="flex items-center gap-3.5">
+          {/* Header */}
+          <div className="px-5 py-4 sm:px-7 sm:py-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 shrink-0">
+            <div className="flex items-center gap-3.5 min-w-0">
               <img
                 src="/logo-96.png"
-                alt="Doctorian App"
-                className="w-12 h-12 rounded-2xl border border-cyan-500/35 object-cover shrink-0"
+                alt="Doctorian"
+                className="w-11 h-11 rounded-2xl border border-slate-200 dark:border-slate-700 object-cover shrink-0"
               />
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                  Download Doctorian Native App
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-bold tracking-tight truncate">
+                  Install Doctorian App
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-                  Dedicated offline-ready packages for Windows PCs, Android smartphones, and HD Tablets.
+                <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
+                  Works completely offline once installed · {isOnline ? 'Fast online sync' : 'Offline installer active'}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs font-semibold shrink-0 self-start sm:self-auto">
-              <button
-                type="button"
-                onClick={() => setActiveTab('devices')}
-                className={`px-3.5 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-                  activeTab === 'devices' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Windows, Android &amp; Tablets
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('packages')}
-                className={`px-3.5 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                  activeTab === 'packages' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Database className="w-3.5 h-3.5" />
-                <span>Offline Packages</span>
-              </button>
-            </div>
+            <button
+              id="close-download-modal-btn"
+              type="button"
+              onClick={onClose}
+              aria-label="Close installation center"
+              className="min-w-[44px] min-h-[44px] rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center cursor-pointer shrink-0 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* BODY */}
-          <div className="flex-1 overflow-y-auto space-y-5 pr-1">
-            {activeTab === 'devices' ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-                {/* 1. WINDOWS WORKSTATION */}
-                <div className="rounded-2xl p-5 bg-[#0C1631] border border-blue-500/30 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-11 h-11 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
-                        <Monitor className="w-5 h-5" />
-                      </div>
-                      <span className="text-xs font-mono text-blue-300 font-semibold">Windows 10 / 11 · .EXE</span>
-                    </div>
-
-                    <h3 className="text-lg font-bold text-white">Windows Desktop App</h3>
-                    <p className="text-xs text-slate-400 mt-1 mb-4 leading-relaxed">
-                      Full Electron desktop installer with local SQLite clinical database, USB sensor bridge, and complete offline AI diagnostics.
-                    </p>
-
-                    <ul className="space-y-2 mb-5 text-xs text-slate-300">
-                      <li className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                        <span>Standalone Windows x64 / ARM64 Installer</span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                        <span>Includes 1,200+ ICD-11 &amp; UCG Offline Protocols</span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                        <span>Auto-syncs queued records on reconnect</span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      triggerDownload(WINDOWS_INSTALLER_URL, 'Doctorian-Windows-Setup.exe', 'Windows Desktop App')
-                    }
-                    className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Download for Windows (.EXE)</span>
-                  </button>
+          {/* Scrollable Body */}
+          <div className="flex-1 overflow-y-auto p-5 sm:p-7 space-y-6">
+            {/* Primary Recommended Action for Current Device */}
+            <section className="rounded-2xl bg-slate-50 dark:bg-[#0c1a3a] border border-slate-200 dark:border-cyan-500/30 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                  <RecommendedIcon className="w-6 h-6" />
                 </div>
-
-                {/* 2. ANDROID SMARTPHONES */}
-                <div className="rounded-2xl p-5 bg-[#0C1631] border border-emerald-500/30 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-11 h-11 rounded-xl bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-                        <Smartphone className="w-5 h-5" />
-                      </div>
-                      <span className="text-xs font-mono text-emerald-300 font-semibold">Android 7+ · .APK</span>
-                    </div>
-
-                    <h3 className="text-lg font-bold text-white">Android Smartphone App</h3>
-                    <p className="text-xs text-slate-400 mt-1 mb-4 leading-relaxed">
-                      Native Capacitor Android package engineered for rural &amp; urban clinics with offline medication tracking, voice AI, and E-Pharmacy bag.
-                    </p>
-
-                    <ul className="space-y-2 mb-5 text-xs text-slate-300">
-                      <li className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                        <span>Direct Android Package Installer (.APK)</span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                        <span>Works without cellular data or Wi-Fi</span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                        <span>Biometric account vault &amp; QR patient pass</span>
-                      </li>
-                    </ul>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-blue-600 dark:text-cyan-400">
+                    <span>Recommended for this device</span>
+                    <span>·</span>
+                    <span className="font-mono tabular-nums">{recommendedPkg.sizeLabel}</span>
                   </div>
-
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        triggerDownload(ANDROID_PHONE_APK_URL, 'Doctorian-MedicalAI-Android.apk', 'Android App')
-                      }
-                      className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>Download Android (.APK)</span>
-                    </button>
-                    <a
-                      href={ANDROID_PLAY_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full min-h-[40px] py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
-                    >
-                      <span>Google Play Store</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-                </div>
-
-                {/* 3. TABLETS (ANDROID HD & WINDOWS TOUCH) */}
-                <div className="rounded-2xl p-5 bg-[#0C1631] border border-cyan-500/30 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-11 h-11 rounded-xl bg-cyan-600/20 border border-cyan-500/40 flex items-center justify-center text-cyan-300">
-                        <Tablet className="w-5 h-5" />
-                      </div>
-                      <span className="text-xs font-mono text-cyan-300 font-semibold">Tablets HD · Multi-Pane</span>
-                    </div>
-
-                    <h3 className="text-lg font-bold text-white">Tablet Workstation App</h3>
-                    <p className="text-xs text-slate-400 mt-1 mb-4 leading-relaxed">
-                      Ward-round &amp; bedside multi-pane layout calibrated for Android Tablets, Galaxy Tab, Surface, and clinical touch terminals.
-                    </p>
-
-                    <ul className="space-y-2 mb-5 text-xs text-slate-300">
-                      <li className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                        <span>Multi-pane ward telemetry &amp; telehealth view</span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                        <span>Offline drug formulary &amp; triage scorer</span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                        <span>Touch-ergonomic bottom dock navigation</span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        triggerDownload(TABLET_HD_APK_URL, 'Doctorian-Tablet-HD.apk', 'Tablet HD App')
-                      }
-                      className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>Download Tablet HD (.APK)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        triggerDownload(WINDOWS_INSTALLER_URL, 'Doctorian-Windows-Tablet-Setup.exe', 'Windows Tablet App')
-                      }
-                      className="w-full min-h-[40px] py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
-                    >
-                      <Monitor className="w-3.5 h-3.5 text-blue-400" />
-                      <span>Windows Touch Tablet (.EXE)</span>
-                    </button>
-                  </div>
+                  <h3 className="text-base sm:text-lg font-bold tracking-tight">
+                    {recommendedPkg.name} ({recommendedPkg.extension})
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xl leading-relaxed">
+                    {recommendedPkg.description}
+                  </p>
                 </div>
               </div>
-            ) : (
-              /* TAB 2: COMPLETE OFFLINE PACKAGE SUITE */
-              <div className="space-y-4 text-left">
-                <div className="p-4 rounded-2xl bg-[#0C1631] border border-cyan-500/35 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-cyan-600/20 border border-cyan-500/40 flex items-center justify-center text-cyan-300 shrink-0">
-                      <HardDrive className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-white">Local Offline Package Vault</h3>
-                      <p className="text-xs text-slate-300 mt-0.5">
-                        <span className="font-mono tabular-nums text-cyan-300">{cachedFileCount}</span> offline app assets &amp; clinical modules verified in browser storage.
-                      </p>
-                    </div>
+
+              <div className="flex flex-col sm:items-end gap-2 shrink-0">
+                <button
+                  type="button"
+                  disabled={Boolean(activeDownloadId || isSyncingOffline)}
+                  onClick={() => void handleInstallPackage(recommendedPkg, true)}
+                  className="w-full sm:w-auto min-h-[44px] px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap shrink-0 shadow-lg shadow-blue-600/20 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>
+                    {activeDownloadId === recommendedPkg.id
+                      ? `Installing ${progressPercent}%`
+                      : `Install ${recommendedPkg.shortLabel} · ${recommendedPkg.sizeLabel}`}
+                  </span>
+                </button>
+                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono tabular-nums">
+                  {isInstalled
+                    ? `Installed footprint: ${displayedInstalledSize}`
+                    : `Exact package footprint: ${recommendedPkg.sizeLabel}`}
+                </span>
+              </div>
+            </section>
+
+            {/* Offline Sync + Progress Status Bar */}
+            <section className="rounded-2xl bg-white dark:bg-[#0b1630] border border-slate-200 dark:border-slate-800 p-4 flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shrink-0">
+                    {isOnline ? <Wifi className="w-5 h-5" /> : <WifiOff className="w-5 h-5" />}
                   </div>
-
-                  <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => void handleSyncAllOfflinePackages()}
-                      disabled={isCachingAll}
-                      className="min-h-[42px] px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60 text-white text-xs font-bold flex items-center gap-2 cursor-pointer whitespace-nowrap"
-                    >
-                      <RefreshCw className={`w-4 h-4 ${isCachingAll ? 'animate-spin' : ''}`} />
-                      <span>{isCachingAll ? `Syncing ${cacheProgress}%` : 'Sync All Packages Offline'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        triggerDownload(OFFLINE_SUITE_URL, 'Doctorian-Offline-Package-Suite.json', 'Offline Clinical Suite')
-                      }
-                      className="min-h-[42px] px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>Export Package Bundle</span>
-                    </button>
+                  <div>
+                    <h4 className="text-sm font-bold">Offline App Engine &amp; Fast Cache</h4>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      <span className="font-mono tabular-nums font-semibold text-slate-900 dark:text-white">
+                        {offlineSummary.cachedCount}
+                      </span>{' '}
+                      cached modules · Android{' '}
+                      <span className="font-mono tabular-nums font-semibold">70.0 MB</span> · Windows{' '}
+                      <span className="font-mono tabular-nums font-semibold">86.4 MB</span>
+                    </p>
                   </div>
                 </div>
 
-                {isCachingAll && (
-                  <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
+                <button
+                  type="button"
+                  disabled={isSyncingOffline || Boolean(activeDownloadId)}
+                  onClick={() => void handlePrepareOfflineApp()}
+                  className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-60 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap shrink-0 transition-colors"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingOffline ? 'animate-spin' : ''}`} />
+                  <span>{isSyncingOffline ? `Syncing ${progressPercent}%` : 'Sync Offline Storage'}</span>
+                </button>
+              </div>
+
+              {(progressStage || isSyncingOffline || activeDownloadId) && (
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
+                    <span className="font-medium truncate">{progressStage}</span>
+                    <span className="font-mono tabular-nums font-bold shrink-0">{progressPercent}%</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                     <div
-                      className="bg-gradient-to-r from-blue-500 to-cyan-400 h-full transition-all duration-150"
-                      style={{ width: `${cacheProgress}%` }}
+                      className="h-full bg-blue-600 dark:bg-cyan-400 transition-all duration-150"
+                      style={{ width: `${progressPercent}%` }}
                     />
                   </div>
-                )}
+                </div>
+              )}
+            </section>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {packages.map((pkg) => (
-                    <div
-                      key={pkg.id}
-                      className="p-4 rounded-2xl bg-[#0C1631] border border-slate-800 flex flex-col justify-between"
-                    >
-                      <div>
-                        <p className="text-xs font-medium text-cyan-400 mb-1">{pkg.category}</p>
-                        <h4 className="text-sm font-bold text-white mb-1">{pkg.name}</h4>
-                        <p className="text-xs text-slate-400 leading-relaxed mb-3">{pkg.description}</p>
+            {/* Filter Controls for All Devices */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-sm font-bold tracking-tight">Choose Device Installer</h3>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {(
+                  [
+                    { id: 'all', label: 'All Devices' },
+                    { id: 'computer', label: 'Computers' },
+                    { id: 'mobile', label: 'Phones' },
+                    { id: 'tablet', label: 'Tablets' },
+                    { id: 'portable', label: 'Offline Kit' }
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setFilter(tab.id)}
+                    className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                      filter === tab.id
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Clean Modern Multi-Device Install Buttons Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {filteredPackages.map((pkg) => {
+                const Icon = getPackageIcon(pkg);
+                const isBusy = activeDownloadId === pkg.id;
+                const isCurrentlyInstalled = isInstalled && offlineSummary.pkg.id === pkg.id;
+
+                return (
+                  <div
+                    key={pkg.id}
+                    className="rounded-2xl bg-slate-50 dark:bg-[#0c1630] border border-slate-200 dark:border-slate-800 p-4 flex flex-col justify-between gap-4"
+                  >
+                    <div className="space-y-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-blue-600 dark:text-cyan-400 shrink-0">
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <div className="text-right">
+                          <span className="text-sm font-bold font-mono tabular-nums text-slate-900 dark:text-white">
+                            {pkg.sizeLabel}
+                          </span>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                            {pkg.platform}
+                          </p>
+                        </div>
                       </div>
 
-                      <div className="flex items-center justify-between pt-2.5 border-t border-slate-800 text-xs">
-                        <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>{pkg.cached ? 'Ready Offline' : 'Pending Sync'}</span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            triggerDownload(
-                              pkg.artifactUrl,
-                              pkg.artifactUrl.split('/').pop() || 'doctorian-package',
-                              pkg.category
-                            )
-                          }
-                          className="text-cyan-300 hover:underline font-semibold cursor-pointer"
-                        >
-                          Download File
-                        </button>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                          {pkg.name}
+                        </h4>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                          {pkg.description}
+                        </p>
+                      </div>
+
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                        {pkg.architecture} · Offline ready · {pkg.extension}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+
+                    <button
+                      type="button"
+                      disabled={Boolean(activeDownloadId || isSyncingOffline)}
+                      onClick={() => void handleInstallPackage(pkg, pkg.id === recommendedId)}
+                      className={`w-full min-h-[44px] px-3.5 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap transition-colors ${
+                        isCurrentlyInstalled
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                          : pkg.id === 'windows' || pkg.id === 'windows_tablet'
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                          : 'bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-blue-600 text-white'
+                      } disabled:opacity-60`}
+                    >
+                      {isCurrentlyInstalled ? (
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      ) : (
+                        <Download className="w-4 h-4 shrink-0" />
+                      )}
+                      <span>
+                        {isBusy
+                          ? `${progressPercent}% Installing...`
+                          : isCurrentlyInstalled
+                          ? `Reinstall · ${pkg.sizeLabel}`
+                          : `Install ${pkg.shortLabel} · ${pkg.sizeLabel}`}
+                      </span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* FOOTER */}
-          <div className="mt-5 pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400 shrink-0">
+          {/* Footer Summary */}
+          <div className="px-5 py-3.5 sm:px-7 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-[#050d20] flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-400 shrink-0">
             <div className="flex flex-wrap items-center gap-4">
-              <span className="flex items-center gap-1.5 text-slate-300">
-                <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Encrypted Account &amp; Patient Vault</span>
+              <span className="flex items-center gap-1.5">
+                <HardDrive className="w-3.5 h-3.5 text-blue-600 dark:text-cyan-400" />
+                <span>
+                  Installed size:{' '}
+                  <strong className="font-mono tabular-nums text-slate-900 dark:text-white">
+                    {displayedInstalledSize}
+                  </strong>
+                </span>
               </span>
-              <span className="flex items-center gap-1.5 text-slate-300">
-                <Zap className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Fast Preloaded App Modules</span>
-              </span>
-              <span className="flex items-center gap-1.5 text-slate-300">
-                <WifiOff className="w-3.5 h-3.5 text-blue-400" />
-                <span>Full Offline Failover</span>
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Offline execution enabled across all devices</span>
               </span>
             </div>
 
-            {statusMessage && (
-              <span className="text-cyan-300 font-semibold">{statusMessage}</span>
-            )}
+            <span className="text-[11px] font-medium">
+              {isOnline ? 'Online + Offline Sync Active' : 'Building Locally Offline'}
+            </span>
           </div>
         </motion.div>
       </div>

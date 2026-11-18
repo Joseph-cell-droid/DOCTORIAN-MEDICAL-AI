@@ -649,6 +649,7 @@ export function setupConnectionsRoutes(
     return res.json({
       success: true,
       remembered: Boolean(dossier),
+      patientMemory: dossier,
       dossier
     });
   });
@@ -682,7 +683,8 @@ export function setupConnectionsRoutes(
       db.prepare('UPDATE users SET phone = ? WHERE id = ?').run(String(phone).trim().slice(0, 30), req.user.id);
     }
     logAudit(req.user.id, req.user.email, req.user.role, 'PATIENT_MEMORY_UPDATED', p.id, 'Updated remembered patient medical details');
-    return res.json({ success: true, dossier: resolveOrRememberPatientProfile(req.user) });
+    const updatedDossier = resolveOrRememberPatientProfile(req.user);
+    return res.json({ success: true, patientMemory: updatedDossier, dossier: updatedDossier });
   });
 
   // 8. Restricted Cross-User Patient Dossier Inspection (Requires Connection or Ownership)

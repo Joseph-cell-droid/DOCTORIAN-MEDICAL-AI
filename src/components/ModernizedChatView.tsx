@@ -22,7 +22,8 @@ import { DownloadAppModal } from './DownloadAppModal';
 import { AppOperationsSettingsModal } from './AppOperationsSettingsModal';
 import { TelehealthScribeHub } from './TelehealthScribeHub';
 import { computePredictiveTriage, VitalsInput } from '../services/predictiveTriageService';
-import { useAppLanguage } from '../utils/translations';
+import { useAppLanguage, getAppLanguage, normalizeLanguageCode } from '../utils/translations';
+import { runAutonomousOfflineMedicalAI } from '../utils/offlineMedicalAI';
 
 export interface ChatbotAgent {
   id: 'primary' | 'emergency' | 'cardiology' | 'pediatric' | 'pharmacology' | 'lab' | 'maternal' | 'neurology' | 'preventive' | 'soap';
@@ -815,7 +816,12 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
   onSwitchToMatrix,
   isDarkMode,
 }) => {
-  const [, , t] = useAppLanguage();
+  const [appLang, , t] = useAppLanguage();
+  const activeUiLanguage = normalizeLanguageCode(
+    currentLanguage && currentLanguage !== 'en' && currentLanguage !== 'English'
+      ? currentLanguage
+      : appLang || getAppLanguage()
+  );
   // --- THEME SYNC (Light Mode / Dark Mode) ---
   const [effectiveDarkMode, setEffectiveDarkMode] = useState<boolean>(() => {
     if (typeof isDarkMode === 'boolean') return isDarkMode;
@@ -1417,7 +1423,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
       const recognition = new SpeechRec();
       recognition.continuous = false;
       recognition.interimResults = false;
-      recognition.lang = currentLanguage === 'sw' ? 'sw-KE' : 'en-US';
+      recognition.lang = activeUiLanguage === 'Swahili' || currentLanguage === 'sw' ? 'sw-KE' : 'en-US';
 
       recognition.onstart = () => setIsRecording(true);
       recognition.onend = () => setIsRecording(false);
@@ -1552,6 +1558,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
         "8. FORMATTING CONSTRAINTS:\n" +
         "   - NEVER use double asterisks (**) or single asterisks (*) anywhere in the text.\n" +
         "   - If the user query is purely conversational (greeting, thanks, creator query), reply conversationally without diagnostic sections.\n" +
+        `9. MULTILINGUAL & ALL-UGANDA FLUENCY: Active app language is "${activeUiLanguage}". You understand and fluently answer in ALL 12 Ugandan languages (Luganda, Kiswahili, Runyankole-Rukiga, Acholi-Luo, Langi, Iteso, Lusoga, Lugbara, Runyoro-Rutooro, Rukonjo, Samia, Karamojong) as well as English. Respond in the language the user wrote in (or ${activeUiLanguage}).\n` +
         `SPECIALIZED AGENT FOCUS: ${activeAgent.instruction}`;
 
       const response = await api.ai.aiChat(
@@ -1561,7 +1568,10 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
         activeAiModel.temperature
       );
 
-      const rawBotText = response?.text || "Thank you for sharing your symptoms. Please ensure you remain well-hydrated with clean fluids and rest in a cool space. If your symptoms worsen or persist, please visit your nearest clinic for hands-on evaluation. Medical attention is recommended.";
+      const rawBotText =
+        response?.text && response.text.trim().length > 10 && !response.text.includes('Connection Unavailable')
+          ? response.text
+          : runAutonomousOfflineMedicalAI(text, activeUiLanguage);
       const botText = ensureModernEmojiInteractivity(cleanAiResponse(rawBotText));
       const structured = parseClinicalResponse(botText);
 
@@ -1632,8 +1642,10 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
         }
       }, 15);
     } catch (err) {
-      console.warn("Error getting AI response:", err);
-      const fallbackText = "I have recorded your symptom profile. Please rest, drink oral rehydration fluids, and visit a health center if your fever or pain intensifies. Medical attention is recommended.";
+      console.warn("Error getting AI response, switching seamlessly to Medbot always-on core:", err);
+      const fallbackText = ensureModernEmojiInteractivity(
+        cleanAiResponse(runAutonomousOfflineMedicalAI(text, activeUiLanguage))
+      );
       const thoughtDuration = `${Math.max(0.8, reasoningElapsed).toFixed(1)}s`;
       const botMsgId = `bot-${Date.now()}`;
       const botMsg: ChatMessage = {
@@ -1641,6 +1653,7 @@ export const ModernizedChatView: React.FC<ModernizedChatViewProps> = ({
         sender: 'bot',
         text: '',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        structuredCard: parseClinicalResponse(fallbackText),
         isStreaming: true,
         thoughtDuration,
         reasoningSteps: ['Thinking...', 'Configuring neural clinical weights...', 'Synthesizing safe clinical protocol'],

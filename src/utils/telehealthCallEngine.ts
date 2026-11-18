@@ -131,21 +131,70 @@ export function playSoftCallTone(kind: 'connect' | 'end' | 'ring'): void {
 
 export function getGreetingForLanguage(clinician: ClinicianPersona, language: string): { primary: string; translation?: string } {
   const lower = language.toLowerCase();
+  const inst = clinician.institution.split(',')[0];
   if (lower.includes('luganda')) {
     return { primary: clinician.greetingLuganda, translation: clinician.greetingEnglish };
   }
-  if (lower.includes('swahili')) {
+  if (lower.includes('swahili') || lower.includes('kiswahili')) {
     return { primary: clinician.greetingSwahili, translation: clinician.greetingEnglish };
   }
-  if (lower.includes('runyankole')) {
+  if (lower.includes('runyankole') || lower.includes('rukiga')) {
     return {
-      primary: `Oraire gye! Ndi ${clinician.name} kuruga ${clinician.institution.split(',')[0]}. Ninkuhurira — omubiri gwawe nigwombera guta ebiro ebi?`,
+      primary: `Agandi! Oraire gye? Ndi ${clinician.name} kuruga ${inst}. Ninkuhurira — omubiri gwawe nigwombera guta ebiro ebi?`,
       translation: clinician.greetingEnglish
     };
   }
   if (lower.includes('acholi')) {
     return {
-      primary: `Itye nining? An aye ${clinician.name} ki ${clinician.institution.split(',')[0]}. Titini komi tye nining tin?`,
+      primary: `Itye nining? An aye ${clinician.name} ki ${inst}. Titini komi tye nining tin?`,
+      translation: clinician.greetingEnglish
+    };
+  }
+  if (lower.includes('langi')) {
+    return {
+      primary: `Itye aber? An aye ${clinician.name} me ${inst}. Konywa tye aber — ngo ame tye atimo komi tin?`,
+      translation: clinician.greetingEnglish
+    };
+  }
+  if (lower.includes('iteso') || lower.includes('ateso')) {
+    return {
+      primary: `Yoga! Ejokona? Araisi eong ${clinician.name} ko ${inst}. Anyoin bo epupi iyong ikapukon lolo?`,
+      translation: clinician.greetingEnglish
+    };
+  }
+  if (lower.includes('lusoga')) {
+    return {
+      primary: `Kodheyo! Oli otya? Ndi ${clinician.name} okuva ku ${inst}. Nkuyambe ntya ku bulamu bwo olwaleero?`,
+      translation: clinician.greetingEnglish
+    };
+  }
+  if (lower.includes('lugbara')) {
+    return {
+      primary: `Mi mi maber? Ama ${clinician.name} ${inst} alia. Mi ma alea ni ngo ra enga drinia?`,
+      translation: clinician.greetingEnglish
+    };
+  }
+  if (lower.includes('runyoro') || lower.includes('rutooro')) {
+    return {
+      primary: `Oraire ota! Ndi ${clinician.name} kuruga ${inst}. Omubiri gwawe niguhurra guta kiro kinu?`,
+      translation: clinician.greetingEnglish
+    };
+  }
+  if (lower.includes('rukonjo')) {
+    return {
+      primary: `Bwakire! Ndi ${clinician.name} erilhua e ${inst}. Wukayowa wuti omu mubiri munabwire?`,
+      translation: clinician.greetingEnglish
+    };
+  }
+  if (lower.includes('samia') || lower.includes('lusamia')) {
+    return {
+      primary: `Mirembe! Ndi ${clinician.name} okhurula e ${inst}. Ohulira otya mu mubiri gwawo leero?`,
+      translation: clinician.greetingEnglish
+    };
+  }
+  if (lower.includes('karamojong')) {
+    return {
+      primary: `Mata! Ejok? Ayong ${clinician.name} alomar ${inst}. Nyon ikoni akwan kon lolo?`,
       translation: clinician.greetingEnglish
     };
   }
@@ -155,20 +204,66 @@ export function getGreetingForLanguage(clinician: ClinicianPersona, language: st
 function localizeSnippet(language: string, text: string): string | undefined {
   const lower = language.toLowerCase();
   const textLower = text.toLowerCase();
+  const isMalariaOrFever = textLower.includes('malaria') || textLower.includes('fever');
+  const isVitals = textLower.includes('pressure') || textLower.includes('heart') || textLower.includes('vitals');
+
   if (lower.includes('luganda')) {
-    if (textLower.includes('malaria') || textLower.includes('fever')) {
+    if (isMalariaOrFever) {
       return 'Kola okukebera omusujja (mRDT), nywa amazzi mangi, era wewalire Coartem ng’omusawo bw’alagidde.';
     }
-    if (textLower.includes('pressure') || textLower.includes('heart')) {
+    if (isVitals) {
       return 'Ebyuma byo biraga omutima gukuba bulungi. Wummula era tova ku ddagala lyo erya pulesa.';
     }
     return 'Ntegedde obubonero bwo. Goberera ebiragiro by’omusawo era nywa amazzi amayonjo agamala.';
   }
-  if (lower.includes('swahili')) {
-    if (textLower.includes('malaria') || textLower.includes('fever')) {
+  if (lower.includes('swahili') || lower.includes('kiswahili')) {
+    if (isMalariaOrFever) {
       return 'Fanya kipimo cha haraka cha malaria (mRDT), kunywa maji mengi, na fuata maagizo ya dawa.';
     }
+    if (isVitals) {
+      return 'Vipimo vyako vinaonyesha mapigo ya moyo yako shwari. Pumzika na uendelee na dawa zako kama ulivyoelekezwa.';
+    }
     return 'Nimepokea dalili zako na vipimo vyako vya moja kwa moja. Endelea kupumzika na kunywa maji.';
+  }
+  if (lower.includes('runyankole') || lower.includes('rukiga')) {
+    return isMalariaOrFever
+      ? 'Kora okukyebera omushwija (mRDT), nywa amaizi maingi, kandi ogyendere aha buragizi bwa dakitari.'
+      : 'Naahurira obubonero bwawe. Humura gye kandi onywe amaizi maingi amarungi.';
+  }
+  if (lower.includes('acholi')) {
+    return isMalariaOrFever
+      ? 'Tim pim me lyeto kom (mRDT), mat pii maleng madwong, ci ilub cik pa daktar i kom yat.'
+      : 'Aniang kom lanyut ma itito. Ywe maber ci imat pii maleng madwong.';
+  }
+  if (lower.includes('langi')) {
+    return isMalariaOrFever
+      ? 'Tim pim me lyeto (mRDT), mat pii acil adwong, eka ilub cik a daktar.'
+      : 'Aniang koppi kede lanyut komi. Wek komi ywe eka imat pii acil.';
+  }
+  if (lower.includes('iteso') || lower.includes('ateso')) {
+    return isMalariaOrFever
+      ? 'Kisomaitait akipim naka malaria (mRDT), komat akipi nuipu, kosodi itupit ikisila ke emuron.'
+      : 'Apupi eong aomisio kon. Kiyengakin kosodi komat akipi nuipu.';
+  }
+  if (lower.includes('lusoga')) {
+    return isMalariaOrFever
+      ? 'Kola okukebera omusudha (mRDT), nywa amaadhi mangi, era ogobere ebiragiro bya dakitari.'
+      : 'Ntegeire obubonero bwo. Wummulaku era onywe amaadhi amalonge.';
+  }
+  if (lower.includes('lugbara')) {
+    return 'Ma eri mi ma agapi tro. Mi mvu yi ma driza ku daktari ma azi be.';
+  }
+  if (lower.includes('runyoro') || lower.includes('rutooro')) {
+    return 'Mpulire oburwaire bwawe. Huura kurungi kandi onywe amaizi maingi amarungi.';
+  }
+  if (lower.includes('rukonjo')) {
+    return 'Nabiryowa obulhwere bwawu. Lhuhuka ndeke kandi wunywe amaghetse mangi.';
+  }
+  if (lower.includes('samia') || lower.includes('lusamia')) {
+    return 'Mbulire obulwaye bwao. Humulaho nende onywe amaatsi mangi amalamu.';
+  }
+  if (lower.includes('karamojong')) {
+    return 'Aira ayong ngakiro kon. Kiyengakin kosodi komat ngakipi naalalak.';
   }
   return undefined;
 }

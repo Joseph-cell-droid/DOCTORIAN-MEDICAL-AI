@@ -108,6 +108,7 @@ import { SmartInstallButton } from './components/SmartInstallButton';
 import { saveRememberedAccount } from './utils/offlineVault';
 import { startNeuralMeshClient } from './utils/neuralClient';
 import { LiveAlarmNotificationCenter } from './components/LiveAlarmNotificationCenter';
+import { SmartAppTopBar } from './components/SmartAppTopBar';
 
 function safeLazy<P extends object = any>(
   importFn: () => Promise<any>,
@@ -269,6 +270,7 @@ import {
 import { isMarianMTModeActive, setMarianMTModeActive, addMarianLog } from "./utils/marianMT";
 import { useAutoLanguageSetup } from './hooks/useAutoLanguageSetup';
 import type { NextGenTechTab } from './components/NextGenTechSuiteModal';
+import { recordUserInterest } from './utils/smartVoiceRouter';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -661,13 +663,17 @@ export default function App() {
     }, 120);
   };
 
-  // 1. Create WeakMaps for node translation tracking
+  // 1. Create WeakMaps for node & attribute translation tracking
   const originalTextMap = useRef(new WeakMap<Node, string>());
   const translatedLanguagesMap = useRef(new WeakMap<Node, string>());
+  const originalPlaceholderMap = useRef(new WeakMap<Element, string>());
+  const originalTitleMap = useRef(new WeakMap<Element, string>());
+  const originalAriaLabelMap = useRef(new WeakMap<Element, string>());
 
   useEffect(() => {
     const onLanguageEvent = (e: Event) => {
-      const next = (e as CustomEvent)?.detail?.language;
+      const detail = (e as CustomEvent)?.detail;
+      const next = typeof detail === 'string' ? detail : detail?.language;
       if (next) {
         const canonical = normalizeLanguageCode(next);
         setCurrentLanguage((prev) => (prev === canonical ? prev : canonical));
@@ -678,7 +684,60 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const onOpenVideo = () => setIsTelehealthOpen(true);
+    const onOpenVoice = () => setIsVoiceCallOpen(true);
+    const onOpenInstall = () => setIsDownloadAppOpen(true);
+    const onSetTheme = (e: Event) => {
+      const dark = (e as CustomEvent)?.detail?.dark;
+      if (typeof dark === 'boolean') setIsDarkMode(dark);
+    };
+    window.addEventListener('doctorian-open-video-call', onOpenVideo);
+    window.addEventListener('doctorian-open-voice-call', onOpenVoice);
+    window.addEventListener('doctorian-open-install-modal', onOpenInstall);
+    window.addEventListener('doctorian-set-theme', onSetTheme);
+    return () => {
+      window.removeEventListener('doctorian-open-video-call', onOpenVideo);
+      window.removeEventListener('doctorian-open-voice-call', onOpenVoice);
+      window.removeEventListener('doctorian-open-install-modal', onOpenInstall);
+      window.removeEventListener('doctorian-set-theme', onSetTheme);
+    };
+  }, []);
+
+  useEffect(() => {
     let isTranslating = false;
+
+    const isSkippedElement = (el: Element | null): boolean => {
+      if (!el) return true;
+      const tagName = el.tagName.toLowerCase();
+      if (
+        tagName === 'script' ||
+        tagName === 'style' ||
+        tagName === 'textarea' ||
+        tagName === 'code' ||
+        tagName === 'pre' ||
+        tagName === 'svg' ||
+        tagName === 'option' ||
+        tagName === 'select'
+      ) {
+        return true;
+      }
+      if (el.closest('svg')) return true;
+      if (
+        el.id === 'google_translate_element' ||
+        el.hasAttribute('data-no-translate') ||
+        Boolean(el.closest('[data-no-translate]')) ||
+        Boolean(el.closest('#google_translate_element')) ||
+        Boolean(el.closest('.language-menu-btn')) ||
+        Boolean(el.closest('.language-dropdown-container')) ||
+        Boolean(el.closest('.recharts-wrapper')) ||
+        Boolean(el.closest('.chart-container')) ||
+        Boolean(el.closest('.ecg-chart')) ||
+        Boolean(el.closest('.no-translate'))
+      ) {
+        return true;
+      }
+      return false;
+    };
 
     const restoreAllNodesToOriginal = () => {
       const restoreNode = (node: Node) => {
@@ -697,10 +756,25 @@ export default function App() {
         const el = parent as HTMLElement;
         if (
           !el ||
-          el.dataset?.noTranslate ||
+          el.dataset?.noTranslate !== undefined ||
           (el.closest && (el.closest('[data-no-translate]') || el.id === 'google_translate_element'))
         ) {
           return;
+        }
+        if (parent.nodeType === Node.ELEMENT_NODE) {
+          const elem = parent as Element;
+          const origPlaceholder = originalPlaceholderMap.current.get(elem);
+          if (origPlaceholder !== undefined && elem.getAttribute('placeholder') !== origPlaceholder) {
+            elem.setAttribute('placeholder', origPlaceholder);
+          }
+          const origTitle = originalTitleMap.current.get(elem);
+          if (origTitle !== undefined && elem.getAttribute('title') !== origTitle) {
+            elem.setAttribute('title', origTitle);
+          }
+          const origAria = originalAriaLabelMap.current.get(elem);
+          if (origAria !== undefined && elem.getAttribute('aria-label') !== origAria) {
+            elem.setAttribute('aria-label', origAria);
+          }
         }
         parent.childNodes.forEach(walkRestore);
       };
@@ -720,41 +794,42 @@ export default function App() {
       return;
     }
 
+    const translateElementAttributes = (elem: Element) => {
+      if (isSkippedElement(elem)) return;
+
+      const translateAttr = (attrName: 'placeholder' | 'title' | 'aria-label', store: WeakMap<Element, string>) => {
+        const currentVal = elem.getAttribute(attrName);
+        if (!currentVal) return;
+        const trimmed = currentVal.trim();
+        if (trimmed.length < 2 || trimmed.length > 400 || /^\d+$/.test(trimmed)) return;
+
+        let originalVal = store.get(elem);
+        if (originalVal === undefined) {
+          originalVal = currentVal;
+          store.set(elem, currentVal);
+        }
+        const translated = translate(originalVal.trim(), currentLanguage);
+        if (translated && translated !== originalVal.trim() && currentVal !== translated) {
+          elem.setAttribute(attrName, translated);
+        }
+      };
+
+      if (elem.hasAttribute('placeholder')) translateAttr('placeholder', originalPlaceholderMap.current);
+      if (elem.hasAttribute('title')) translateAttr('title', originalTitleMap.current);
+      if (elem.hasAttribute('aria-label')) translateAttr('aria-label', originalAriaLabelMap.current);
+    };
+
     // Function to translate a single text node
     const translateTextNode = (node: Node) => {
       if (isTranslating) return;
 
       const parent = node.parentElement;
-      if (!parent) return;
-
-      // Skip elements that shouldn't be translated
-      const tagName = parent.tagName.toLowerCase();
-      if (
-        tagName === 'script' || 
-        tagName === 'style' || 
-        tagName === 'textarea' || 
-        tagName === 'code' || 
-        tagName === 'pre'
-      ) return;
-
-      if (parent.closest('svg') || tagName === 'svg') return;
-
-      if (
-        (parent.closest && parent.closest('[data-no-translate]')) || 
-        parent.id === 'google_translate_element' ||
-        (parent.closest && parent.closest('#google_translate_element')) ||
-        (parent.closest && parent.closest('.language-menu-btn')) || 
-        (parent.closest && parent.closest('.language-dropdown-container')) ||
-        (parent.closest && parent.closest('.recharts-wrapper')) ||
-        (parent.closest && parent.closest('.chart-container')) ||
-        (parent.closest && parent.closest('.ecg-chart')) ||
-        (parent.closest && parent.closest('.no-translate'))
-      ) return;
+      if (!parent || isSkippedElement(parent)) return;
 
       const text = node.textContent;
       if (!text) return;
       const trimmed = text.trim();
-      if (trimmed.length < 2 || trimmed.length > 1500 || /^\d+$/.test(trimmed)) return; // skip numbers, short tokens or extremely long text blocks
+      if (trimmed.length < 2 || trimmed.length > 1500 || /^\d+$/.test(trimmed)) return;
 
       // Check WeakMap for original text
       let original = originalTextMap.current.get(node);
@@ -780,35 +855,17 @@ export default function App() {
       }
     };
 
-    // Translate the entire page body recursively
+    // Translate the entire page body (or added subtree) recursively
     const translatePage = (startNode: Node) => {
       if (isTranslating) return;
-      
+
       const walker = document.createTreeWalker(
         startNode,
         NodeFilter.SHOW_TEXT,
         {
           acceptNode: (node) => {
             const parent = node.parentElement;
-            if (!parent) return NodeFilter.FILTER_REJECT;
-            const tagName = parent.tagName.toLowerCase();
-            if (tagName === 'script' || tagName === 'style' || tagName === 'textarea' || tagName === 'code' || tagName === 'pre') {
-              return NodeFilter.FILTER_REJECT;
-            }
-            if (parent.closest('svg') || tagName === 'svg') {
-              return NodeFilter.FILTER_REJECT;
-            }
-            if (
-              parent.id === 'google_translate_element' ||
-              (parent.closest && parent.closest('[data-no-translate]')) || 
-              (parent.closest && parent.closest('#google_translate_element')) ||
-              (parent.closest && parent.closest('.language-menu-btn')) ||
-              (parent.closest && parent.closest('.language-dropdown-container')) ||
-              (parent.closest && parent.closest('.recharts-wrapper')) ||
-              (parent.closest && parent.closest('.chart-container')) ||
-              (parent.closest && parent.closest('.ecg-chart')) ||
-              (parent.closest && parent.closest('.no-translate'))
-            ) {
+            if (!parent || isSkippedElement(parent)) {
               return NodeFilter.FILTER_REJECT;
             }
             return NodeFilter.FILTER_ACCEPT;
@@ -823,26 +880,38 @@ export default function App() {
         currentNode = walker.nextNode();
       }
 
+      const elementsToTranslate: Element[] = [];
+      if (startNode.nodeType === Node.ELEMENT_NODE) {
+        const rootEl = startNode as Element;
+        elementsToTranslate.push(rootEl);
+        rootEl
+          .querySelectorAll('input[placeholder], textarea[placeholder], [title], [aria-label]')
+          .forEach((child) => elementsToTranslate.push(child));
+      }
+
       isTranslating = true;
       try {
-        nodesToTranslate.forEach(translateTextNode);
+        elementsToTranslate.forEach(translateElementAttributes);
       } finally {
         isTranslating = false;
       }
+
+      nodesToTranslate.forEach(translateTextNode);
     };
 
-    // Run first-pass translation
+    // Run first-pass translation + delayed pass for Suspense/async widgets
     translatePage(document.body);
+    const settleTimer = window.setTimeout(() => {
+      if (!isTranslating) translatePage(document.body);
+    }, 180);
 
     // Watch for dynamic elements added to DOM
     const observer = new MutationObserver((mutations) => {
       if (isTranslating) return;
-      
-      let shouldTranslate = false;
+
       for (const mutation of mutations) {
         if (mutation.type === 'childList') {
           for (const addedNode of Array.from(mutation.addedNodes)) {
-            // Check if it's text-related or has children
             if (addedNode.nodeType === Node.TEXT_NODE) {
               translateTextNode(addedNode);
             } else if (addedNode.nodeType === Node.ELEMENT_NODE) {
@@ -868,12 +937,13 @@ export default function App() {
         if (isTranslating) return;
         translatedLanguagesMap.current = new WeakMap<Node, string>();
         translatePage(document.body);
-      }, 350);
+      }, 200);
     };
 
     window.addEventListener("local_translations_updated", handleUpdatedTranslation);
 
     return () => {
+      window.clearTimeout(settleTimer);
       observer.disconnect();
       if (debounceTimer) clearTimeout(debounceTimer);
       window.removeEventListener("local_translations_updated", handleUpdatedTranslation);
@@ -894,8 +964,6 @@ export default function App() {
 
   const canGoPrev = navigationHistory.index > 0;
   const canGoNext = navigationHistory.index < navigationHistory.stack.length - 1;
-  const prevTargetView = canGoPrev ? navigationHistory.stack[navigationHistory.index - 1] : null;
-  const nextTargetView = canGoNext ? navigationHistory.stack[navigationHistory.index + 1] : null;
 
   const setCurrentView = (view: any) => {
     let target = view;
@@ -907,7 +975,7 @@ export default function App() {
       setIsNextGenSuiteOpen(true);
       return;
     }
-    if (view === 'consult' || view === 'chat' || view === 'ai') {
+    if (view === 'consult' || view === 'chat' || view === 'ai' || view === 'medbot') {
       target = 'ai_nexus';
     } else if (view === 'doctors') {
       target = 'doctors_dashboard';
@@ -958,6 +1026,7 @@ export default function App() {
     }
 
     _setCurrentView(target);
+    recordUserInterest(String(target));
 
     // Track bidirectional chronological navigation path
     setNavigationHistory((prev) => {
@@ -977,6 +1046,10 @@ export default function App() {
     const viewport = document.getElementById('app-scroll-viewport');
     if (viewport) {
       viewport.scrollTop = 0;
+    }
+    if (!currentLanguage.startsWith('English')) {
+      window.setTimeout(() => window.dispatchEvent(new CustomEvent('local_translations_updated')), 120);
+      window.setTimeout(() => window.dispatchEvent(new CustomEvent('local_translations_updated')), 500);
     }
   };
 
@@ -1017,6 +1090,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [hasNotification, setHasNotification] = useState(false);
+  const [unreadAlertsCount, setUnreadAlertsCount] = useState(0);
   const [user, setUser] = useState<User | null>(() => {
     try {
       const saved = localStorage.getItem('medical_user');
@@ -1038,7 +1112,16 @@ export default function App() {
     } catch (e) {}
     return false;
   });
-  const [showSplash, setShowSplash] = useState<boolean>(true);
+  const [showSplash, setShowSplash] = useState<boolean>(() => {
+    try {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+      if (localStorage.getItem('doctorian_offline_app_ready') === 'true') return false;
+      if (window.matchMedia?.('(display-mode: standalone)')?.matches) return false;
+    } catch {
+      // ignore
+    }
+    return true;
+  });
   const [scannedPatientData, setScannedPatientData] = useState<any | null>(null);
   const [isScanLoading, setIsScanLoading] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -1097,9 +1180,8 @@ export default function App() {
   const [isRegisteringBiometrics, setIsRegisteringBiometrics] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isStorageVaultOpen, setIsStorageVaultOpen] = useState(false);
-  const [billingInitialTab, setBillingInitialTab] = useState<'protocols' | 'storage'>('protocols');
+  const [billingInitialTab, setBillingInitialTab] = useState<'protocols' | 'storage' | 'sms' | 'ledger'>('protocols');
   const [isThemeSchedulerOpen, setIsThemeSchedulerOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isUpperBarAlertsOpen, setIsUpperBarAlertsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -1883,7 +1965,7 @@ export default function App() {
       }).catch(console.error);
     }
 
-    // Preload high-frequency feature modules silently during idle browser time for instant navigation
+    // Preload high-frequency feature modules & warm full offline asset cache during idle browser time
     const preloadCoreViews = () => {
       void import("./components/EPharmacyAndMedics");
       void import("./components/AppMedics");
@@ -1893,8 +1975,19 @@ export default function App() {
       void import("./components/AppointmentsView");
       void import("./components/AppServerNetwork");
       void import("./components/UgandaPatientTriage");
+      void import("./components/ModernizedChatView");
+      void import("./components/ProfileSettings");
+      void import("./components/SubscriptionModal");
+      void import("./components/DownloadAppModal");
+      void import("./components/DeveloperPortal");
+
+      if (navigator.onLine) {
+        import('./utils/offlinePackageBuilder')
+          .then(({ syncCompleteOfflineApp }) => syncCompleteOfflineApp())
+          .catch(() => {});
+      }
     };
-    const idleTimer = window.setTimeout(preloadCoreViews, 1500);
+    const idleTimer = window.setTimeout(preloadCoreViews, 800);
 
     // Connect live WebSocket + BroadcastChannel Neural Mesh for server-to-self & role-to-role comms
     startNeuralMeshClient();
@@ -2694,7 +2787,7 @@ export default function App() {
         <ErrorBoundary>
           <MedicalAISplash
             onDismiss={() => setShowSplash(false)}
-            autoCloseTimeout={3200}
+            autoCloseTimeout={1200}
           />
         </ErrorBoundary>
       );
@@ -2838,387 +2931,20 @@ export default function App() {
         <div id="app-scroll-viewport" className={`flex-1 flex flex-col h-full min-h-0 overflow-x-hidden custom-scrollbar relative scroll-smooth overscroll-y-contain ${
           currentView === 'ai_nexus' ? 'overflow-hidden' : 'overflow-y-auto'
         }`}>
-        <div className="sticky top-0 z-[60] w-full flex flex-col pointer-events-auto">
-        {currentView !== 'ai_nexus' && (
-        <motion.header 
-          initial={false}
-          animate={{
-            backgroundColor: isEyeCareMode 
-              ? (isDarkMode ? 'rgba(69, 26, 3, 0.96)' : 'rgba(254, 243, 199, 0.96)')
-              : (isDarkMode ? 'rgba(5, 14, 38, 0.95)' : 'rgba(255, 255, 255, 0.95)'),
-            borderColor: isEyeCareMode
-              ? (isDarkMode ? 'rgba(217, 119, 6, 0.45)' : 'rgba(251, 191, 36, 0.45)')
-              : (isDarkMode ? 'rgba(34, 211, 238, 0.25)' : 'rgba(203, 213, 225, 0.95)'),
-            boxShadow: isEyeCareMode
-              ? '0 10px 20px -3px rgba(245, 158, 11, 0.15)'
-              : (isDarkMode ? '0 8px 28px -4px rgba(1, 6, 20, 0.65)' : '0 4px 16px -2px rgba(15, 23, 42, 0.06)'),
-          }}
-          transition={{ 
-            type: "spring", 
-            stiffness: 140, 
-            damping: 22 
-          }}
-          className="sticky top-0 z-[100] backdrop-blur-2xl border-b-2 overflow-visible pt-[env(safe-area-inset-top,0px)]"
-        >
-          <div className="w-full px-3 sm:px-5 lg:px-6 max-w-5xl mx-auto">
-            <div className="flex items-center justify-between py-1.5 sm:py-2 gap-2 sm:gap-3 w-full">
-              
-              {/* Left Side: Extended Doctorian AI Brand Logo flush to top-left */}
-              <div className="flex items-center min-w-0">
-                <button
-                  type="button"
-                  onClick={() => setCurrentView('home')}
-                  className="flex items-center gap-2.5 sm:gap-3 min-w-0 py-0.5 pr-2 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 rounded-xl"
-                >
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/15 dark:bg-[#0b1b3a] border border-slate-200 dark:border-cyan-500/35 p-1 flex items-center justify-center shadow-xs shrink-0">
-                    <img 
-                      src="/assets/aistudio/image_3d2127ab.png" 
-                      alt="Doctorian AI" 
-                      className="w-full h-full object-contain rounded-lg group-hover:scale-105 transition-transform duration-150"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/logo.png';
-                      }} 
-                    />
-                  </div>
-                  <div className="text-left leading-none min-w-0">
-                    <span className="text-[15px] sm:text-[17px] font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap block">
-                      Doctorian <span className="text-cyan-600 dark:text-cyan-400">AI</span>
-                    </span>
-                  </div>
-                </button>
-              </div>
-
-              {/* Right Side: Uncrowded Smart Icons (Search, Call & Auto-SMS, 1 GB Vault, Live Alarm Bell, Profile) */}
-              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                {/* Compact Search Icon Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsSearchOpen(true)}
-                  className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-full bg-slate-100 dark:bg-[#0b1b3a] border border-slate-200 dark:border-cyan-500/30 hover:border-cyan-400 text-slate-700 dark:text-cyan-200 flex items-center justify-center shadow-2xs cursor-pointer active:scale-95 transition-all shrink-0"
-                  title={translate("Search patients, doctors, or health records...", currentLanguage)}
-                  aria-label="Search"
-                >
-                  <Search size={15} />
-                </button>
-
-                {/* Smart Function 1: Instant Call & Auto-SMS to Registered Doctors / Patients */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsUpperBarAlertsOpen(false);
-                    setIsProfileOpen(false);
-                    setIsVoiceCallOpen(true);
-                  }}
-                  className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-full bg-cyan-500/12 dark:bg-cyan-500/15 border border-cyan-300/70 dark:border-cyan-400/35 hover:border-cyan-400 text-cyan-700 dark:text-cyan-300 flex items-center justify-center shadow-2xs cursor-pointer active:scale-95 transition-all shrink-0"
-                  title={translate("Call & Auto-SMS Registered Doctors or Patients", currentLanguage)}
-                  aria-label="Call and Auto-SMS"
-                >
-                  <PhoneCall size={15} />
-                </button>
-
-                {/* Smart Function 2: Encrypted 1 GB Cloud Data Vault & Storage Restrictions */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsUpperBarAlertsOpen(false);
-                    setIsProfileOpen(false);
-                    setIsStorageVaultOpen(true);
-                  }}
-                  className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-full bg-indigo-500/12 dark:bg-indigo-500/15 border border-indigo-300/70 dark:border-indigo-400/35 hover:border-indigo-400 text-indigo-700 dark:text-indigo-300 flex items-center justify-center shadow-2xs cursor-pointer active:scale-95 transition-all shrink-0"
-                  title={translate("1 GB Encrypted Cloud Storage Vault", currentLanguage)}
-                  aria-label="1 GB Encrypted Storage Vault"
-                >
-                  <HardDrive size={15} />
-                </button>
-
-                {/* Desktop/Tablet Language Switcher (Hidden on tiny Android upper bar to keep it uncrowded; available inside Profile menu) */}
-                <div className="hidden sm:flex relative items-center" data-no-translate>
-                  <Globe size={13} className="absolute left-2.5 text-cyan-500 dark:text-cyan-400 pointer-events-none" />
-                  <select
-                    aria-label="Select Language"
-                    value={normalizeLanguageCode(currentLanguage)}
-                    onChange={(e) => {
-                      const nextLang = e.target.value;
-                      const canonical = setAppLanguage(nextLang);
-                      setCurrentLanguage(canonical);
-                      addToast(`Language changed to ${canonical}`, 'success');
-                    }}
-                    className="pl-7 pr-2 py-1.5 rounded-full bg-slate-100 dark:bg-[#0b1b3a] border border-slate-200 dark:border-cyan-500/35 text-[11px] font-extrabold text-slate-800 dark:text-white cursor-pointer focus:outline-none focus:border-cyan-400 max-w-[114px] truncate"
-                  >
-                    {SUPPORTED_LANGUAGES.map((lang) => (
-                      <option key={lang.code} value={lang.code} className="bg-slate-900 text-white">
-                        {lang.nativeLabel}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* 1. Live Notification Alarm Bell with Real-Time Receiving & Sending */}
-                <LiveAlarmNotificationCenter
-                  user={user}
-                  isOpen={isUpperBarAlertsOpen}
-                  onToggle={() => {
-                    setIsUpperBarAlertsOpen(!isUpperBarAlertsOpen);
-                    setIsProfileOpen(false);
-                  }}
-                  onClose={() => setIsUpperBarAlertsOpen(false)}
-                  onNavigate={(targetView) => setCurrentView(targetView)}
-                  addToast={addToast}
-                  onUnreadChange={(cnt) => setHasNotification(cnt > 0)}
-                />
-
-                {/* 2. Small Smart User Profile Avatar Icon */}
-                <div className="relative shrink-0">
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      setIsProfileOpen(!isProfileOpen);
-                      setIsUpperBarAlertsOpen(false);
-                    }}
-                    className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-full bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 ring-2 ring-emerald-500/40 p-0.5 hover:ring-emerald-500 transition-all cursor-pointer shadow-2xs flex items-center justify-center relative group shrink-0"
-                    aria-label="User profile menu"
-                    aria-expanded={isProfileOpen}
-                    title="Dr. Joseph Akora (Uganda MoH Verified)"
-                  >
-                    <div className="w-full h-full rounded-full overflow-hidden">
-                      {user.photoURL ? (
-                        <img 
-                          src={user.photoURL} 
-                          alt="" 
-                          className="w-full h-full object-cover" 
-                          referrerPolicy="no-referrer" 
-                        />
-                      ) : (
-                        <img 
-                          src={josephPortrait} 
-                          alt="Dr. Joseph Akora" 
-                          className="w-full h-full object-cover" 
-                        />
-                      )}
-                    </div>
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 animate-pulse" />
-                  </button>
-
-                      {isProfileOpen && (
-                        <div 
-                          className="fixed inset-0 z-40"
-                          onClick={() => setIsProfileOpen(false)}
-                        />
-                      )}
-                      <AnimatePresence>
-                        {isProfileOpen && (
-                          <motion.div
-                            key="user-profile-menu-modal"
-                            initial={{ opacity: 0, y: 12, scale: 0.95, filter: 'blur(10px)' }}
-                              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-                              exit={{ opacity: 0, y: 12, scale: 0.95, filter: 'blur(10px)' }}
-                              className="absolute right-0 mt-3 w-72 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-200 dark:border-slate-800/80 py-3 z-50 overflow-hidden"
-                            >
-                              <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800/50 mb-2">
-                                <div className="flex items-center gap-3 mb-3">
-                                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 p-[2px] shrink-0">
-                                    <div className="w-full h-full rounded-[14px] bg-white dark:bg-slate-900 overflow-hidden">
-                                      {user.photoURL ? (
-                                        <img src={user.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                      ) : (
-                                        <img src={josephPortrait} alt="" className="w-full h-full object-cover" />
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="overflow-hidden">
-                                    <p className="text-sm font-black text-slate-900 dark:text-white truncate uppercase tracking-tight">{user.displayName || 'Dr. Joseph Akora'}</p>
-                                    <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 truncate tracking-tight flex items-center gap-1">
-                                      <MapPin size={10} /> {nearestHospitalData.hospital.shortName} • {nearestHospitalData.distanceKm}km
-                                    </p>
-                                  </div>
-                                </div>
-                    <div className="flex items-center gap-2">
-                                  <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                    <motion.div 
-                                      initial={{ width: 0 }}
-                                      animate={{ width: `${creditPercentage}%` }}
-                                      className="h-full bg-emerald-500"
-                                    />
-                                  </div>
-                                  <div className="flex flex-col items-end">
-                                    <span className="text-[9px] font-black text-emerald-600 uppercase">
-                                      {displayCredits} Neural Energy
-                                    </span>
-                                    <span className="text-[7px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-right">Daily Allotment</span>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              <div className="px-2 space-y-1">
-                                {/* Compact Language Selector on Mobile Profile Drawer */}
-                                <div className="sm:hidden flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/70 mb-1" data-no-translate>
-                                  <span className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
-                                    <Globe size={14} className="text-cyan-500" />
-                                    <span>Language</span>
-                                  </span>
-                                  <select
-                                    aria-label="Select Language Mobile"
-                                    value={normalizeLanguageCode(currentLanguage)}
-                                    onChange={(e) => {
-                                      const nextLang = e.target.value;
-                                      const canonical = setAppLanguage(nextLang);
-                                      setCurrentLanguage(canonical);
-                                      addToast(`Language changed to ${canonical}`, 'success');
-                                    }}
-                                    className="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-white focus:outline-none"
-                                  >
-                                    {SUPPORTED_LANGUAGES.map((lang) => (
-                                      <option key={lang.code} value={lang.code} className="bg-slate-900 text-white">
-                                        {lang.nativeLabel}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                                {/* Upgraded Uganda Digital Health ID Card Button */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setIsProfileOpen(false);
-                                    setIsDoctorianProfileModalOpen(true);
-                                  }}
-                                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all group border border-emerald-400/30"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
-                                      <Award size={16} />
-                                    </div>
-                                    <div className="flex flex-col text-left">
-                                      <span className="leading-tight font-black uppercase text-[11px]">Uganda Health Card</span>
-                                      <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">GPS: {nearestHospitalData.hospital.shortName}</span>
-                                    </div>
-                                  </div>
-                                  <span className="text-[8px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded-full uppercase">
-                                    VIEW
-                                  </span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setIsProfileOpen(false);
-                                    setIsStorageVaultOpen(true);
-                                  }}
-                                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-all group border border-indigo-100 dark:border-indigo-900/40"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <HardDrive size={16} className="text-indigo-600 dark:text-indigo-400" />
-                                    <div className="flex flex-col text-left">
-                                      <span className="leading-tight">1GB Storage Vault</span>
-                                      <span className="text-[9px] text-slate-400 font-normal">Files, Docs & Medical Data</span>
-                                    </div>
-                                  </div>
-                                  <span className="text-[9px] font-black bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300 px-1.5 py-0.5 rounded-md">
-                                    1GB FREE
-                                  </span>
-                                </button>
-
-                                <button
-                                  onClick={() => {
-                                    setIsProfileOpen(false);
-                                    setIsDoctorianProfileModalOpen(true);
-                                  }}
-                                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition-all group"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                                      <UserIcon size={16} />
-                                    </div>
-                                    <span className="font-black uppercase tracking-tight">Clinical Profile & ID</span>
-                                  </div>
-                                  <span className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">→</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCurrentView('smart_watch');
-                                    setIsProfileOpen(false);
-                                  }}
-                                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 transition-all group border border-cyan-500/25 cursor-pointer"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-xl bg-cyan-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
-                                      <Watch size={16} />
-                                    </div>
-                                    <span className="font-black uppercase tracking-tight text-left">{translate("Doctorian Watch", currentLanguage)}</span>
-                                  </div>
-                                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                </button>
-
-                                <button
-                                  onClick={() => {
-                                    handleNeuralCoreAccess();
-                                    setIsProfileOpen(false);
-                                  }}
-                                  className="w-full flex items-center justify-between px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition-all group"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 group-hover:scale-110 transition-transform">
-                                      <BrainCircuit size={16} />
-                                    </div>
-                                    <span className="font-black uppercase tracking-tight text-left">{translate("Talk to Doctor", currentLanguage)}</span>
-                                  </div>
-                                  <div className="w-2 h-2 rounded-full bg-violet-550 animate-pulse" />
-                                </button>
-
-                                {isAdmin && (
-                                  <button
-                                    onClick={() => {
-                                      setCurrentView('admin');
-                                      setIsProfileOpen(false);
-                                    }}
-                                    className="w-full flex items-center justify-between px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition-all group"
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
-                                        <Shield size={16} />
-                                      </div>
-                                      <span className="font-black uppercase tracking-tight">Admin Terminal</span>
-                                    </div>
-                                    <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-                                  </button>
-                                )}
-                              </div>
-
-                              <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 group px-2 pb-2 space-y-1">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setHasEnteredApp(false);
-                                    setIsProfileOpen(false);
-                                  }}
-                                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all uppercase tracking-wider cursor-pointer"
-                                >
-                                  <LogIn size={15} className="text-blue-500 shrink-0" />
-                                  <span>Switch Account / Gate</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleLogout();
-                                    setIsProfileOpen(false);
-                                  }}
-                                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-[10px] font-black text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all uppercase tracking-[0.2em] cursor-pointer"
-                                >
-                                  <LogOut size={15} className="shrink-0" />
-                                  <span>Log Out Securely</span>
-                                </button>
-                              </div>
-                            </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                </div>
-              </div>
-            </div>
-          </motion.header>
-        )}
-
+        <div className="sticky top-0 z-[60] w-full flex flex-col pointer-events-none">
+          <SmartAppTopBar
+            currentView={currentView}
+            user={user}
+            onNavigate={(view) => setCurrentView(view as any)}
+            vitals={arduino.vitals}
+            isSensorConnected={Boolean((arduino as any).isConnected || (arduino as any).connected)}
+            isOffline={isOffline}
+            onOpenNextGenTech={(tab) => {
+              setNextGenInitialTab(tab);
+              setIsNextGenSuiteOpen(true);
+            }}
+            onNotify={addToast}
+          />
       {/* Visual Offline Mode Banner */}
       <AnimatePresence>
         {isOffline && (
@@ -3227,7 +2953,7 @@ export default function App() {
             animate={{ height: "auto", opacity: 1, y: 0 }}
             exit={{ height: 0, opacity: 0, y: -10 }}
             transition={{ type: "spring", stiffness: 200, damping: 25 }}
-            className="w-full bg-amber-500/15 dark:bg-amber-500/5 border-b border-amber-500/25 text-amber-800 dark:text-amber-400 backdrop-blur-md overflow-hidden shrink-0"
+            className="pointer-events-auto w-full bg-amber-500/15 dark:bg-amber-500/5 border-b border-amber-500/25 text-amber-800 dark:text-amber-400 backdrop-blur-md overflow-hidden shrink-0"
           >
             <div className="max-w-7xl mx-auto px-4 py-3 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
               <div className="flex items-center gap-3">
@@ -3265,50 +2991,9 @@ export default function App() {
 
       </div>
 
-      <main className={`flex-1 relative flex flex-col pt-0 w-full animate-fadeIn ${
-        currentView === 'ai_nexus' ? 'pb-0 h-full min-h-0 overflow-hidden' : 'pb-16 sm:pb-20'
+      <main className={`flex-1 relative flex flex-col pt-[env(safe-area-inset-top,0px)] w-full animate-fadeIn ${
+        currentView === 'ai_nexus' ? 'pb-0 h-full min-h-0 overflow-hidden' : 'pb-[82px] sm:pb-[88px]'
       }`} id="main-content">
-          {currentView !== 'ai_nexus' && (
-            <div className="w-full px-3 sm:px-5 lg:px-6 max-w-6xl mx-auto flex items-center justify-end pt-2 pb-0.5 shrink-0">
-              <div
-                className="inline-flex items-center gap-1 rounded-xl bg-white/85 dark:bg-[#081533]/85 backdrop-blur-md border border-slate-200/90 dark:border-cyan-500/25 p-0.5 shadow-xs"
-                role="navigation"
-                aria-label="Page history navigation"
-              >
-                <button
-                  type="button"
-                  onClick={handleGoPrev}
-                  disabled={!canGoPrev}
-                  title={canGoPrev && prevTargetView ? `Previous: ${viewNamesMap[prevTargetView] || prevTargetView}` : 'No previous page'}
-                  aria-label="Previous page"
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                    canGoPrev
-                      ? 'text-slate-800 dark:text-cyan-100 hover:bg-cyan-500/15 hover:text-cyan-700 dark:hover:text-cyan-300 cursor-pointer active:scale-95'
-                      : 'text-slate-400/60 dark:text-slate-600 cursor-not-allowed'
-                  }`}
-                >
-                  <ChevronLeft size={14} />
-                  <span>Prev</span>
-                </button>
-                <div className="w-px h-3.5 bg-slate-200 dark:bg-cyan-500/25" />
-                <button
-                  type="button"
-                  onClick={handleGoNext}
-                  disabled={!canGoNext}
-                  title={canGoNext && nextTargetView ? `Next: ${viewNamesMap[nextTargetView] || nextTargetView}` : 'No next page'}
-                  aria-label="Next page"
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                    canGoNext
-                      ? 'text-slate-800 dark:text-cyan-100 hover:bg-cyan-500/15 hover:text-cyan-700 dark:hover:text-cyan-300 cursor-pointer active:scale-95'
-                      : 'text-slate-400/60 dark:text-slate-600 cursor-not-allowed'
-                  }`}
-                >
-                  <span>Next</span>
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
-          )}
           <div className={`flex-1 flex flex-col items-stretch relative w-full ${
             currentView === 'ai_nexus'
               ? 'py-0 px-0 max-w-full h-full min-h-0 space-y-0' 
@@ -3656,10 +3341,10 @@ export default function App() {
               currentLanguage={currentLanguage}
               addToast={addToast}
               onLanguageChange={(lang) => {
-                setCurrentLanguage(lang);
-                localStorage.setItem("app_lang", lang);
+                const canonical = setAppLanguage(lang);
+                setCurrentLanguage(canonical);
                 setToast({
-                  message: `🌐 Language updated to ${lang}. Re-indexing clinical interface lexicon...`,
+                  message: `🌐 Language updated to ${canonical}. Re-indexing clinical interface lexicon...`,
                   type: 'success'
                 });
               }}
@@ -3850,7 +3535,13 @@ export default function App() {
           >
             <AppServerNetwork 
               currentUser={user} 
-              onNavigate={(v) => setCurrentView(v as any)} 
+              onUpdateUser={setUser}
+              onNavigate={(v, opts) => {
+                if (opts?.billingTab) {
+                  setBillingInitialTab(opts.billingTab);
+                }
+                setCurrentView(v as any);
+              }} 
               onShowToast={(msg, type) => addToast(msg, type || 'info')} 
             />
           </motion.div>
@@ -4177,6 +3868,26 @@ export default function App() {
               </AnimatePresence>
             </Suspense>
           </div>
+
+          {currentView !== 'ai_nexus' && (
+            <footer
+              aria-label="App copyright and developer credit"
+              className="w-full max-w-6xl mx-auto px-3.5 sm:px-6 pt-2 pb-1.5 mt-auto shrink-0"
+            >
+              <div className="rounded-2xl border border-slate-200/80 dark:border-cyan-500/20 bg-white/75 dark:bg-[#07152e]/80 backdrop-blur-md px-3.5 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-4 text-center sm:text-left shadow-xs">
+                <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300 leading-tight">
+                  © {new Date().getFullYear()} <span className="font-black text-slate-900 dark:text-white">Doctorian</span> · EBRO. {translate('All rights reserved.', currentLanguage)}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('about')}
+                  className="text-[11px] font-extrabold tracking-wide text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-cyan-300 transition-colors cursor-pointer"
+                >
+                  {translate('Developer', currentLanguage)}: <span className="font-black text-blue-600 dark:text-cyan-400 tracking-wider">AKORA JOSEPH</span>
+                </button>
+              </div>
+            </footer>
+          )}
         </main>
 
   {/* Search Overlay */}
@@ -4777,8 +4488,8 @@ export default function App() {
                   onOpenSettings={() => setIsOperationsSettingsOpen(true)}
                   currentLanguage={currentLanguage}
                   onChangeLanguage={(lang) => {
-                    setCurrentLanguage(lang);
-                    localStorage.setItem("app_lang", lang);
+                    const canonical = setAppLanguage(lang);
+                    setCurrentLanguage(canonical);
                   }}
                   downloadedLanguages={downloadedLanguages}
                   downloadingLang={downloadingLang}
@@ -4889,7 +4600,22 @@ export default function App() {
       }}
     />
 
-    {/* Page Bottom Navigation Bar - Slideable & Corner-Dockable with >> / << (Hidden in full-screen AI chat to prevent blocking the input card) */}
+    {/* Live Alarm Notification Modal (Triggered cleanly from Modern App Navigation Bar) */}
+    <LiveAlarmNotificationCenter
+      hideTrigger
+      user={user}
+      isOpen={isUpperBarAlertsOpen}
+      onToggle={() => setIsUpperBarAlertsOpen((prev) => !prev)}
+      onClose={() => setIsUpperBarAlertsOpen(false)}
+      onNavigate={(targetView) => setCurrentView(targetView)}
+      addToast={addToast}
+      onUnreadChange={(cnt) => {
+        setHasNotification(cnt > 0);
+        setUnreadAlertsCount(cnt);
+      }}
+    />
+
+    {/* Modern Floating App Navigation Bar (Uncrowded 5-tab dock + Smart Hub drawer; hidden in full-screen AI chat) */}
     {currentView !== 'ai_nexus' && (
       <SafeNavErrorBoundary key={`bottom-nav-${currentView}`}>
         <Suspense fallback={null}>
@@ -4897,6 +4623,37 @@ export default function App() {
             currentView={currentView} 
             onNavigate={(view) => setCurrentView(view as any)}
             onOpenMenu={() => setIsMobileMenuOpen(true)}
+            user={user}
+            unreadAlertsCount={unreadAlertsCount}
+            canGoPrev={canGoPrev}
+            canGoNext={canGoNext}
+            onGoPrev={handleGoPrev}
+            onGoNext={handleGoNext}
+            onOpenSearch={() => setIsSearchOpen(true)}
+            onOpenVoiceCall={() => {
+              setIsUpperBarAlertsOpen(false);
+              setIsVoiceCallOpen(true);
+            }}
+            onOpenVault={() => {
+              setIsUpperBarAlertsOpen(false);
+              setIsStorageVaultOpen(true);
+            }}
+            onOpenAlerts={() => setIsUpperBarAlertsOpen(true)}
+            onOpenProfileModal={() => setIsDoctorianProfileModalOpen(true)}
+            onOpenInstallModal={() => setIsDownloadAppOpen(true)}
+            onOpenAuth={() => {
+              setAuthModalView('login');
+              setIsAuthModalOpen(true);
+            }}
+            onLogout={handleLogout}
+            isDarkMode={isDarkMode}
+            onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+            currentLanguage={currentLanguage}
+            onChangeLanguage={(lang) => {
+              const canonical = setAppLanguage(lang);
+              setCurrentLanguage(canonical);
+              addToast(`Language changed to ${canonical}`, 'success');
+            }}
           />
         </Suspense>
       </SafeNavErrorBoundary>

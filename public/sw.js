@@ -1,7 +1,7 @@
-// Doctorian Service Worker v5 — Full Offline App Shell, Telehealth Portraits, Native Packages & API Cache
-const SHELL_CACHE = 'doctorian-shell-v5';
-const RUNTIME_CACHE = 'doctorian-runtime-v5';
-const API_CACHE = 'doctorian-api-v5';
+// Doctorian Service Worker v6 — Fast Online Loading + Full Offline App Shell, Chunks & API Resilience
+const SHELL_CACHE = 'doctorian-shell-v6';
+const RUNTIME_CACHE = 'doctorian-runtime-v6';
+const API_CACHE = 'doctorian-api-v6';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -16,7 +16,6 @@ const PRECACHE_ASSETS = [
   '/logo-96.png',
   '/logo-72.png',
   '/logo-48.png',
-  '/favicon.ico',
   '/rx_hero_banner.png',
   '/rx_capsule_3d.png',
   '/rx_doctor_telemed.png',
@@ -28,23 +27,40 @@ const PRECACHE_ASSETS = [
   '/portraits/dr_achan_grace.jpg',
   '/portraits/dr_joseph_mukasa.jpg',
   '/portraits/patient_sarah.jpg',
-  '/downloads/Doctorian-Offline-Package-Suite.json',
-  '/downloads/Doctorian-Setup.exe',
-  '/downloads/Doctorian-MedicalAI-Android.apk',
-  '/downloads/Doctorian-Tablet-HD.apk'
+  '/downloads/Doctorian-Offline-Package-Suite.json'
 ];
 
-// Read-only safe API GET paths to mirror offline so dashboards, guidelines, orders, and chats stay alive
 const CACHEABLE_API_PREFIXES = [
   '/api/guidelines',
   '/api/dashboard/live-summary',
   '/api/network/users',
   '/api/network/messages',
   '/api/network/stats',
+  '/api/connections/',
+  '/api/patient-memory/',
+  '/api/sms/analytics',
+  '/api/telephony/directory',
+  '/api/billing/plans',
   '/api/neural/events',
-  '/api/pharmacy/orders',
+  '/api/pharmacy/',
+  '/api/offline-assets',
   '/api/ai/status'
 ];
+
+function fetchWithTimeout(request, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('network_timeout')), timeoutMs);
+    fetch(request)
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -52,9 +68,7 @@ self.addEventListener('install', (event) => {
       .open(SHELL_CACHE)
       .then((cache) =>
         Promise.allSettled(
-          PRECACHE_ASSETS.map((url) =>
-            cache.add(url).catch(() => null)
-          )
+          PRECACHE_ASSETS.map((url) => cache.add(url).catch(() => null))
         )
       )
       .then(() => self.skipWaiting())
@@ -81,18 +95,20 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Never cache WebSocket upgrades or SSE/live endpoints
   if (url.pathname.includes('/ws') || url.pathname.includes('/live')) {
     return;
   }
 
-  // 1. Safe GET API Endpoints -> NetworkFirst with Offline Cache Fallback
+  // 1. Safe GET API Endpoints -> Fast Network with Instant Cached Fallback on Offline/Slow Links
   if (url.pathname.startsWith('/api/')) {
+    if (url.pathname.startsWith('/api/download-app-')) {
+      return;
+    }
     const isCacheableApi = CACHEABLE_API_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
     if (!isCacheableApi) return;
 
     event.respondWith(
-      fetch(event.request)
+      fetchWithTimeout(event.request, 4500)
         .then((networkRes) => {
           if (networkRes && networkRes.status === 200) {
             const copy = networkRes.clone();
@@ -104,7 +120,7 @@ self.addEventListener('fetch', (event) => {
           const cached = await caches.match(event.request);
           if (cached) return cached;
           return new Response(
-            JSON.stringify({ offline: true, message: 'Served offline cache fallback.' }),
+            JSON.stringify({ offline: true, cachedFallback: true, message: 'Offline mode active.' }),
             { status: 503, headers: { 'Content-Type': 'application/json' } }
           );
         })
@@ -112,10 +128,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. SPA Navigation -> NetworkFirst with instant cached App Shell fallback
+  // 2. SPA Navigation -> Fast Network (1.8s cap) with Instant Offline Shell Fallback
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
+      fetchWithTimeout(event.request, 1800)
         .then((networkRes) => {
           if (networkRes && networkRes.status === 200) {
             const copy = networkRes.clone();
@@ -134,27 +150,29 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Native Installers (/downloads/*) -> NetworkFirst with guaranteed offline Shell Cache fallback
-  if (url.pathname.startsWith('/downloads/')) {
+  // 3. Streamed Native Binary Packages -> Always stream directly (client handles offline fallback synthesis cleanly)
+  if (url.pathname.startsWith('/downloads/') && !url.pathname.endsWith('.json')) {
+    return;
+  }
+
+  // 4. Production Hashed Assets (/assets/*.js, *.css) -> CacheFirst for Instant Page Transitions
+  if (url.pathname.startsWith('/assets/')) {
     event.respondWith(
-      fetch(event.request)
-        .then((networkRes) => {
+      caches.match(event.request).then((cachedRes) => {
+        if (cachedRes) return cachedRes;
+        return fetch(event.request).then((networkRes) => {
           if (networkRes && networkRes.status === 200) {
             const copy = networkRes.clone();
-            caches.open(SHELL_CACHE).then((cache) => cache.put(event.request, copy));
+            caches.open(RUNTIME_CACHE).then((cache) => cache.put(event.request, copy));
           }
           return networkRes;
-        })
-        .catch(async () => {
-          const cached = await caches.match(event.request);
-          if (cached) return cached;
-          return new Response('Offline package not yet cached', { status: 503 });
-        })
+        });
+      })
     );
     return;
   }
 
-  // 4. Vite dev source modules (/src/, /@vite/, /node_modules/) -> NetworkFirst with offline cache backup
+  // 5. Vite dev modules (/src/, /@vite/, /node_modules/) -> NetworkFirst with Offline Backup
   if (
     url.pathname.startsWith('/src/') ||
     url.pathname.startsWith('/node_modules/') ||
@@ -163,7 +181,7 @@ self.addEventListener('fetch', (event) => {
     url.pathname.endsWith('.ts')
   ) {
     event.respondWith(
-      fetch(event.request)
+      fetchWithTimeout(event.request, 2500)
         .then((networkRes) => {
           if (networkRes && networkRes.status === 200) {
             const copy = networkRes.clone();
@@ -180,7 +198,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 5. Production Assets, Images, CSS, JS, Fonts -> Stale-While-Revalidate
+  // 6. Icons, Portraits, Manifests, Media -> Stale-While-Revalidate (Zero-wait load when cached)
   event.respondWith(
     caches.match(event.request).then((cachedRes) => {
       const fetchPromise = fetch(event.request)
@@ -199,7 +217,24 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  if (!event.data) return;
+  if (event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
+  }
+  if (event.data.type === 'PRECACHE_URLS' && Array.isArray(event.data.urls)) {
+    const urls = event.data.urls.filter((u) => typeof u === 'string' && !u.includes('/downloads/Doctorian-') || u.endsWith('.json'));
+    event.waitUntil(
+      caches.open(RUNTIME_CACHE).then((cache) =>
+        Promise.allSettled(
+          urls.map((u) =>
+            caches.match(u).then((hit) => {
+              if (hit && !u.startsWith('/api/')) return hit;
+              return cache.add(u).catch(() => null);
+            })
+          )
+        )
+      )
+    );
   }
 });

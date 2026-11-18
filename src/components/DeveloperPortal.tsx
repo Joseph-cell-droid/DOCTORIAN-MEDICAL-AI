@@ -28,10 +28,16 @@ import {
   Package,
   Server,
   Smartphone,
-  Monitor
+  Monitor,
+  Tablet
 } from 'lucide-react';
 import { api } from '../api';
 import { motion, AnimatePresence } from 'motion/react';
+import {
+  APP_INSTALL_PACKAGES,
+  type AppInstallPackageId,
+  downloadDevicePackage
+} from '../utils/offlinePackageBuilder';
 
 export const DeveloperPortal: React.FC = () => {
   const [keys, setKeys] = useState<any[]>([]);
@@ -45,6 +51,9 @@ export const DeveloperPortal: React.FC = () => {
   const [credentials, setCredentials] = useState<any>(null);
   const [showCredentials, setShowCredentials] = useState(false);
   const [confirmRevokeId, setConfirmRevokeId] = useState<number | null>(null);
+  const [downloadingPkgId, setDownloadingPkgId] = useState<AppInstallPackageId | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadMessage, setDownloadMessage] = useState('');
 
   // Smart Fallback Diagnostic States
   const [prioritizeLocal, setPrioritizeLocal] = useState<boolean>(() => {
@@ -310,79 +319,102 @@ console.log(data.choices[0].message.content);
       </div>
 
       {activeTab === 'download' && (
-        <motion.div 
-          initial={{ opacity: 0, y: 15 }}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-8"
+          className="space-y-6"
         >
-          {/* Main Download Card */}
-          <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-blue-950 text-white border border-blue-500/30 rounded-3xl p-8 sm:p-10 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="relative z-10 max-w-3xl space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-black uppercase tracking-widest">
-                <Package size={14} />
-                <span>Full Standalone Application Package</span>
-              </div>
-              
-              <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-white leading-tight">
-                Download Doctorian <span className="text-blue-400">Offline App Package</span>
-              </h2>
-
-              <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-                Download the complete standalone application package, full offline Express server engine, WHO ICD-11 clinical database (23.07 MB), drug interaction matrices, and offline translation lexicons. Choose your operating platform below for an instant, direct download (<strong>28.5 MB complete package</strong>):
+          <div className="bg-white dark:bg-[#08132b] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+            <div className="space-y-2 max-w-3xl">
+              <p className="text-xs font-bold text-blue-600 dark:text-cyan-400">
+                Multi-Device Installers · Works Offline &amp; Online
               </p>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                Install Doctorian on Any Device
+              </h2>
+              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                Android mobile packages ship at an exact <strong>70.0 MB</strong> baseline, while Windows workstation installers are <strong>86.4 MB</strong> with desktop runtime and local SQLite &amp; USB clinical bridge. All installers synthesize locally even when offline.
+              </p>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-                  <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Android App</div>
-                  <div className="text-xl font-black text-emerald-400">28.5 MB APK</div>
-                  <div className="text-[10px] text-slate-400">Android Installable Package</div>
+            {downloadMessage && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-slate-700 dark:text-slate-200 font-semibold">
+                  <span>{downloadMessage}</span>
+                  <span className="font-mono tabular-nums">{downloadProgress}%</span>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-                  <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Laptop / PC Executable</div>
-                  <div className="text-xl font-black text-cyan-400">28.5 MB Setup .EXE</div>
-                  <div className="text-[10px] text-slate-400">Windows/Mac/Linux Offline App</div>
-                </div>
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-                  <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Full Source Archive</div>
-                  <div className="text-xl font-black text-blue-400">28.5 MB ZIP</div>
-                  <div className="text-[10px] text-slate-400">Includes 23.07MB Offline DB</div>
+                <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 dark:bg-cyan-400 transition-all duration-150"
+                    style={{ width: `${downloadProgress}%` }}
+                  />
                 </div>
               </div>
+            )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-                <a
-                  href="/api/download-app-apk"
-                  download="Doctorian-Medical-App-v2026.apk"
-                  className="px-6 py-4 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black uppercase tracking-wider text-xs rounded-2xl shadow-xl shadow-emerald-600/30 transition-all flex items-center justify-center gap-2.5 text-center cursor-pointer"
-                >
-                  <Smartphone size={20} />
-                  <span>Download Android APK (.APK)</span>
-                </a>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              {APP_INSTALL_PACKAGES.filter((p) =>
+                ['android', 'windows', 'tablet_android', 'offline_suite'].includes(p.id)
+              ).map((pkg) => {
+                const Icon =
+                  pkg.id === 'windows'
+                    ? Monitor
+                    : pkg.id === 'tablet_android'
+                    ? Tablet
+                    : pkg.id === 'offline_suite'
+                    ? Package
+                    : Smartphone;
+                const isBusy = downloadingPkgId === pkg.id;
 
-                <a
-                  href="/api/download-app-exe"
-                  download="Doctorian-Laptop-Setup.exe"
-                  className="px-6 py-4 bg-cyan-600 hover:bg-cyan-500 active:scale-95 text-white font-black uppercase tracking-wider text-xs rounded-2xl shadow-xl shadow-cyan-600/30 transition-all flex items-center justify-center gap-2.5 text-center cursor-pointer"
-                >
-                  <Monitor size={20} />
-                  <span>Download Laptop Executable (.EXE)</span>
-                </a>
+                return (
+                  <div
+                    key={pkg.id}
+                    className="rounded-2xl bg-slate-50 dark:bg-[#0d1936] border border-slate-200 dark:border-slate-800 p-4 flex flex-col justify-between gap-4"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-blue-600 dark:text-cyan-400">
+                          <Icon size={18} />
+                        </div>
+                        <span className="text-sm font-black font-mono tabular-nums text-slate-900 dark:text-white">
+                          {pkg.sizeLabel}
+                        </span>
+                      </div>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">{pkg.name}</h3>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                        {pkg.platform} · {pkg.extension}
+                      </p>
+                    </div>
 
-                <a
-                  href="/api/download-app-zip"
-                  download="Doctorian-Medical-App-Offline.zip"
-                  className="px-6 py-4 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black uppercase tracking-wider text-xs rounded-2xl shadow-xl shadow-blue-600/30 transition-all flex items-center justify-center gap-2.5 text-center cursor-pointer"
-                >
-                  <Package size={20} />
-                  <span>Download Source Package (.ZIP)</span>
-                </a>
-              </div>
+                    <button
+                      type="button"
+                      disabled={Boolean(downloadingPkgId)}
+                      onClick={() => {
+                        setDownloadingPkgId(pkg.id);
+                        setDownloadProgress(5);
+                        setDownloadMessage(`Preparing ${pkg.name} (${pkg.sizeLabel})...`);
+                        void downloadDevicePackage(pkg.id, {
+                          onProgress: (pct, stage) => {
+                            setDownloadProgress(pct);
+                            setDownloadMessage(stage);
+                          }
+                        }).finally(() => {
+                          window.setTimeout(() => setDownloadingPkgId(null), 800);
+                        });
+                      }}
+                      className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap transition-colors"
+                    >
+                      <Download size={15} />
+                      <span>{isBusy ? `${downloadProgress}%` : `Install · ${pkg.sizeLabel}`}</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
 
-              <div className="text-xs text-slate-400 flex items-center gap-2 pt-2">
-                <Check size={14} className="text-emerald-400" />
-                <span>All packages include the complete 28.5 MB offline medical engine and WHO ICD-11 clinical database</span>
-              </div>
+            <div className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2 pt-1">
+              <Check size={14} className="text-emerald-500 shrink-0" />
+              <span>Exact installed size shown across all devices · Offline clinical guidelines, E-Pharmacy &amp; patient records synced</span>
             </div>
           </div>
         </motion.div>

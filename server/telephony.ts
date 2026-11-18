@@ -722,6 +722,7 @@ export function setupTelephonyRoutes(
       const creditsRow = db.prepare('SELECT sms_credits FROM users WHERE id = ?').get(req.user.id) as any;
       return res.status(201).json({
         success: true,
+        sentCount: dispatches.length,
         dispatchedCount: dispatches.length,
         skippedCount: skipped.length,
         dispatches,
@@ -735,6 +736,26 @@ export function setupTelephonyRoutes(
         requiresSmsTopUp: err?.code === 'INSUFFICIENT_SMS_CREDITS'
       });
     }
+  });
+
+  const mapSmsRow = (s: any) => ({
+    id: s.id,
+    callSessionId: s.call_session_id,
+    senderName: s.sender_name,
+    recipientId: s.recipient_id,
+    recipientName: s.recipient_name,
+    recipientRole: s.recipient_role,
+    recipientPhone: s.recipient_phone,
+    messageBody: s.message_body,
+    dispatchMode: s.dispatch_mode,
+    gatewayProvider: s.gateway_provider,
+    providerMessageId: s.provider_message_id,
+    status: s.status,
+    segments: Number(s.segments || 1),
+    costUgx: Number(s.cost_ugx || 60),
+    priceUgx: Number(s.price_ugx || 150),
+    marginUgx: Number(s.margin_ugx || 90),
+    createdAt: s.created_at
   });
 
   // 5. Profitable SMS Economics, Margin & Credit Balance Telemetry
@@ -764,17 +785,23 @@ export function setupTelephonyRoutes(
           WHERE sender_id = ? OR recipient_id = ?
         `).get(req.user.id, req.user.id)) as any;
 
+    const recentRows = (isAdmin
+      ? db.prepare('SELECT * FROM sms_dispatches ORDER BY created_at DESC LIMIT 12').all()
+      : db.prepare('SELECT * FROM sms_dispatches WHERE sender_id = ? OR recipient_id = ? ORDER BY created_at DESC LIMIT 12').all(req.user.id, req.user.id)) as any[];
+
     return res.json({
       success: true,
+      mySmsCredits: Number(userRow?.sms_credits ?? 25),
       smsCredits: Number(userRow?.sms_credits ?? 25),
-      retailRatePerSmsUgx: SMS_RETAIL_PRICE_UGX,
-      wholesaleCostPerSmsUgx: SMS_WHOLESALE_COST_UGX,
-      unitMarginUgx: SMS_UNIT_MARGIN_UGX,
-      totalSmsDispatched: Number(stats?.totalSms || 0),
+      totalSent: Number(stats?.totalSms || 0),
       totalSegments: Number(stats?.totalSegments || 0),
-      totalBilledValueUgx: Number(stats?.totalRevenueUgx || 0),
-      totalCarrierCostUgx: Number(stats?.totalCostUgx || 0),
-      netProfitMarginUgx: Number(stats?.totalMarginUgx || 0)
+      totalRevenueUgx: Number(stats?.totalRevenueUgx || 0),
+      totalWholesaleCostUgx: Number(stats?.totalCostUgx || 0),
+      totalProfitUgx: Number(stats?.totalMarginUgx || 0),
+      unitPriceUgx: SMS_RETAIL_PRICE_UGX,
+      unitCostUgx: SMS_WHOLESALE_COST_UGX,
+      unitMarginUgx: SMS_UNIT_MARGIN_UGX,
+      recentDispatches: recentRows.map(mapSmsRow)
     });
   });
 
@@ -808,24 +835,7 @@ export function setupTelephonyRoutes(
         status: c.status,
         createdAt: c.created_at
       })),
-      sms: sms.map((s) => ({
-        id: s.id,
-        callSessionId: s.call_session_id,
-        senderName: s.sender_name,
-        recipientId: s.recipient_id,
-        recipientName: s.recipient_name,
-        recipientRole: s.recipient_role,
-        recipientPhone: s.recipient_phone,
-        messageBody: s.message_body,
-        dispatchMode: s.dispatch_mode,
-        gatewayProvider: s.gateway_provider,
-        providerMessageId: s.provider_message_id,
-        status: s.status,
-        segments: Number(s.segments || 1),
-        priceUgx: Number(s.price_ugx || 150),
-        marginUgx: Number(s.margin_ugx || 90),
-        createdAt: s.created_at
-      }))
+      sms: sms.map(mapSmsRow)
     });
   });
 }
